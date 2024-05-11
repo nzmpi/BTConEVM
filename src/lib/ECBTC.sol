@@ -13,9 +13,9 @@ library ECBTC {
 
     uint256 constant GX = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798;
     uint256 constant GY = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8;
-    uint256 constant AA = 0;
-    uint256 constant BB = 7;
-    uint256 constant PP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
+    uint256 constant A = 0;
+    uint256 constant B = 7;
+    uint256 constant P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F;
     uint256 constant N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
     /**
@@ -53,7 +53,7 @@ library ECBTC {
      * @return p - The result
      */
     function mulG(uint256 _k) internal pure returns (Point memory p) {
-        (p.x, p.y) = _k.ecMul(GX, GY, AA, PP);
+        (p.x, p.y) = _k.ecMul(GX, GY, A, P);
     }
 
     /**
@@ -72,7 +72,7 @@ library ECBTC {
      * @return p - The result
      */
     function mul(uint256 _k, Point memory _p) internal pure returns (Point memory p) {
-        (p.x, p.y) = _k.ecMul(_p.x, _p.y, AA, PP);
+        (p.x, p.y) = _k.ecMul(_p.x, _p.y, A, P);
     }
 
     /**
@@ -82,6 +82,10 @@ library ECBTC {
      * @return p - The result
      */
     function add(Point memory _p1, Point memory _p2) internal pure returns (Point memory p) {
-        (p.x, p.y) = _p1.x.ecAdd(_p1.y, _p2.x, _p2.y, AA, PP);
+        (p.x, p.y) = _p1.x.ecAdd(_p1.y, _p2.x, _p2.y, A, P);
+    }
+
+    function deriveY(uint256 _x, bytes1 _prefix) internal pure returns (uint256 y) {
+        y = EllipticCurve.deriveY(uint8(_prefix), _x, A, B, P);
     }
 }
