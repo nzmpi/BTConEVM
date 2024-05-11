@@ -1,21 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-import "../src/lib/SigLib.sol";
+import "./utils/BaseTest.sol";
+import {SigLib, Signature} from "../src/lib/SigLib.sol";
 
-contract TestSigLib is Test {
+contract TestSigLib is BaseTest {
     using ECBTC for uint256;
     using SigLib for uint256;
 
-    uint256 constant privateKey = uint256(keccak256("Some private key"));
-    uint256 constant anotherPrivateKey = uint256(keccak256("Another private key"));
-    uint256 constant messageHash = uint256(keccak256("Some message to sign"));
-    uint256 constant anotherMessageHash = uint256(keccak256("Another message to sign"));
-    Point pubKey = privateKey.mulG();
-    Point anotherPubKey = anotherPrivateKey.mulG();
-
-    function test_sign() public {        
+    function test_sign() public {
         Signature memory sig1 = messageHash.sign(privateKey);
         assertNotEq(sig1.r, 0, "Signature1 r should be non-zero");
         assertNotEq(sig1.s, 0, "Signature1 s should be non-zero");
@@ -31,7 +24,7 @@ contract TestSigLib is Test {
         Signature memory sig4 = messageHash.sign(anotherPrivateKey);
         assertNotEq(sig1.r, sig4.r, "Signature4 r should be different");
         assertNotEq(sig1.s, sig4.s, "Signature4 s should be different");
-        
+
         // change k by changing block.timestamp
         vm.warp(42);
         Signature memory sig5 = messageHash.sign(privateKey);
@@ -52,7 +45,7 @@ contract TestSigLib is Test {
 
     function test_invalid_verify() public view {
         Signature memory sig = messageHash.sign(privateKey);
-        
+
         // Wrong message hash
         assertFalse(anotherMessageHash.verify(sig, pubKey), "Message hash should be invalid");
 
@@ -62,5 +55,5 @@ contract TestSigLib is Test {
         // Wrong signature
         sig.s = sig.s.add(1);
         assertFalse(messageHash.verify(sig, pubKey), "Signature should be invalid");
-    }   
+    }
 }
