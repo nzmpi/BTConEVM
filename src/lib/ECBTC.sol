@@ -7,6 +7,7 @@ import {Point} from "./Structs.sol";
 /**
  * @title Secp256k1 Elliptic Curve
  * @dev A wrapper for elliptic curve operations using secp256k1 parameters.
+ * @author https://github.com/nzmpi
  */
 library ECBTC {
     using EllipticCurve for uint256;

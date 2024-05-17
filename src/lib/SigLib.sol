@@ -6,7 +6,8 @@ import {Signature, Point} from "./Structs.sol";
 
 /**
  * @title SigLib - Signature Library
- * @notice Takes care of signing and verifying signatures
+ * @notice Takes care of signing and verifying signatures.
+ * @author https://github.com/nzmpi
  */
 library SigLib {
     using ECBTC for uint256;
