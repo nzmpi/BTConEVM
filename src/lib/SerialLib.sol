@@ -3,25 +3,27 @@ pragma solidity ^0.8.24;
 
 import {Point, Signature} from "./Structs.sol";
 import {ECBTC} from "./ECBTC.sol";
+import {Base58} from "./Base58.sol";
 
 /**
  * @title SerialLib - Serialization Library
- * @notice Takes care of serializing and deserializing public keys and signatures.
+ * @notice Takes care of serializing public keys, signatures and private keys.
  * @author https://github.com/nzmpi
  */
 library SerialLib {
     using ECBTC for uint256;
+    using Base58 for bytes;
 
     error WrongPrefix();
 
     /**
      * Serializes public key
      * @param _pubKey - The Public Key to be serialized
-     * @param isCompressed - If to return compressed public key or uncompressed
+     * @param _isCompressed - If to return compressed public key or uncompressed
      * @return - Serialized public key
      */
-    function serializePublicKey(Point memory _pubKey, bool isCompressed) internal pure returns (bytes memory) {
-        if (isCompressed) {
+    function serializePublicKey(Point memory _pubKey, bool _isCompressed) internal pure returns (bytes memory) {
+        if (_isCompressed) {
             // compressed SEC format
             if (_pubKey.y % 2 == 0) {
                 return bytes.concat(bytes1(0x02), bytes32(_pubKey.x));
@@ -72,6 +74,24 @@ library SerialLib {
         res = bytes.concat(bytes1(0x02), bytes1(uint8(r.length)), r, res);
         // 0x30 - a marker
         res = bytes.concat(bytes1(0x30), bytes1(uint8(res.length)), res);
+    }
+
+    /**
+     * Serializes private key (WIF format)
+     * @param _privKey - The private key to be serialized
+     * @param _isCompressed - Indicates whether the public key was compressed to derive the address
+     * @return res - Serialized private key
+     */
+    function serializePrivateKey(uint256 _privKey, bool _isCompressed) internal pure returns (bytes memory res) {
+        if (_isCompressed) {
+            /// @dev for testnet change 0x80 -> 0xef
+            res = bytes.concat(bytes1(0x80), bytes32(_privKey), bytes1(0x01));
+            res = bytes.concat(res, bytes4(sha256(bytes.concat(sha256(res))))).encode();
+        } else {
+            /// @dev for testnet change 0x80 -> 0xef
+            res = bytes.concat(bytes1(0x80), bytes32(_privKey));
+            res = bytes.concat(res, bytes4(sha256(bytes.concat(sha256(res))))).encode();
+        }
     }
 
     /**
