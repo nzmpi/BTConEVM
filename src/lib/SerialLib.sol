@@ -20,7 +20,7 @@ library SerialLib {
      * Serializes public key
      * @param _pubKey - The Public Key to be serialized
      * @param _isCompressed - If to return compressed public key or uncompressed
-     * @return - Serialized public key
+     * @return Serialized public key
      */
     function serializePublicKey(Point memory _pubKey, bool _isCompressed) internal pure returns (bytes memory) {
         if (_isCompressed) {
@@ -67,9 +67,9 @@ library SerialLib {
      * @return res - Serialized signature
      */
     function serializeSignature(Signature memory _sig) internal pure returns (bytes memory res) {
-        bytes memory s = firstByteCheck(bytes32(_sig.s));
+        res = firstByteCheck(bytes32(_sig.s));
         // 0x02 - a marker
-        res = bytes.concat(bytes1(0x02), bytes1(uint8(s.length)), s);
+        res = bytes.concat(bytes1(0x02), bytes1(uint8(res.length)), res);
         bytes memory r = firstByteCheck(bytes32(_sig.r));
         res = bytes.concat(bytes1(0x02), bytes1(uint8(r.length)), r, res);
         // 0x30 - a marker
@@ -98,6 +98,7 @@ library SerialLib {
      * Checks if the first byte is greater than 0x80
      * If it is, prepends 0x00
      * @param x - s or r from signature
+     * @return The result
      */
     function firstByteCheck(bytes32 x) private pure returns (bytes memory) {
         return bytes1(x) > 0x80 ? bytes.concat(bytes1(0x00), bytes32(x)) : bytes.concat(bytes32(x));

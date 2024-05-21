@@ -34,8 +34,8 @@ library ECBTC {
      * @param _y - The second scalar
      * @return res - The result
      */
-    function add(uint256 _x, uint256 _y) internal pure returns (uint256 res) {
-        res = addmod(_x, _y, N);
+    function add(uint256 _x, uint256 _y) internal pure returns (uint256) {
+        return addmod(_x, _y, N);
     }
 
     /**
@@ -44,8 +44,8 @@ library ECBTC {
      * @param _y - The second scalar
      * @return res - The result
      */
-    function mul(uint256 _x, uint256 _y) internal pure returns (uint256 res) {
-        res = mulmod(_x, _y, N);
+    function mul(uint256 _x, uint256 _y) internal pure returns (uint256) {
+        return mulmod(_x, _y, N);
     }
 
     /**
@@ -62,8 +62,8 @@ library ECBTC {
      * @param _x - The scalar
      * @return xInv - The result
      */
-    function inv(uint256 _x) internal pure returns (uint256 xInv) {
-        xInv = _x.invMod(N);
+    function inv(uint256 _x) internal pure returns (uint256) {
+        return _x.invMod(N);
     }
 
     /**
@@ -86,7 +86,13 @@ library ECBTC {
         (p.x, p.y) = _p1.x.ecAdd(_p1.y, _p2.x, _p2.y, A, P);
     }
 
-    function deriveY(uint256 _x, bytes1 _prefix) internal pure returns (uint256 y) {
-        y = EllipticCurve.deriveY(uint8(_prefix), _x, A, B, P);
+    /**
+     * @dev Derives y from x
+     * @param _x - The x coordinate
+     * @param _prefix - The prefix == 0x02 or 0x03
+     * @return y - The result
+     */
+    function deriveY(uint256 _x, bytes1 _prefix) internal pure returns (uint256) {
+        return EllipticCurve.deriveY(uint8(_prefix), _x, A, B, P);
     }
 }
