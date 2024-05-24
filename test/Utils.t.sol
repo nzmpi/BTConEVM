@@ -16,7 +16,24 @@ contract TestUtils is BaseTest {
         hex"c5d0837b49d3ab65cbdfbfa2d1772b9b0f9420c32d85df192e9ad2b3d6fa8490000e84d257536cc1d505c31dbc0d9ad730079fe7afbe19d171a7adb0629c0d78c8"
     ];
 
-    function test_hash() public view {
+    function test_hash160() public view {
+        bytes32[6] memory expected = [
+            bytes32(hex"b472a266d0bd89c13706a4132ccfb16f7c3b9fcb"),
+            hex"9f7fd096d37ed2c0e3f7f0cfc924beef4ffceb68",
+            hex"807e59ee43b1c51fa5627ec65fe284cc95d218ba",
+            hex"f04df4c4b30d2b7ac6e1ed2445aeb12a9cb4d2ec",
+            hex"7de90645a59d6336f9392ff0a0e2f125b670f77b",
+            hex"ac7f604620aa1340c3b9d43fb40842ddeda161c6"
+        ];
+
+        console.logBytes("op_1");
+
+        for (uint256 i; i < data.length; ++i) {
+            assertEq(data[i].hash160(), expected[i], "Should correctly hash160 data");
+        }
+    }
+
+    function test_hash256() public view {
         bytes32[6] memory expected = [
             bytes32(hex"5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"),
             hex"1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a",
@@ -27,7 +44,7 @@ contract TestUtils is BaseTest {
         ];
 
         for (uint256 i; i < data.length; ++i) {
-            assertEq(data[i].hash256(), expected[i], "Should correctly hash data");
+            assertEq(data[i].hash256(), expected[i], "Should correctly hash256 data");
         }
     }
 

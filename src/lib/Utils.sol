@@ -8,6 +8,15 @@ pragma solidity ^0.8.24;
  */
 library Utils {
     /**
+     * Hash160
+     * @param _data - The data to hash
+     * @return res - Hashed data
+     */
+    function hash160(bytes memory _data) internal pure returns (bytes32) {
+        return ripemd160(bytes.concat(sha256(_data)));
+    }
+
+    /**
      * Hash256
      * @param _data - The data to hash
      * @return res - Hashed data
