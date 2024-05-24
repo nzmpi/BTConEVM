@@ -16,7 +16,7 @@ contract TestUtils is BaseTest {
         hex"c5d0837b49d3ab65cbdfbfa2d1772b9b0f9420c32d85df192e9ad2b3d6fa8490000e84d257536cc1d505c31dbc0d9ad730079fe7afbe19d171a7adb0629c0d78c8"
     ];
 
-    function test_hash() public view {        
+    function test_hash() public view {
         bytes32[6] memory expected = [
             bytes32(hex"5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"),
             hex"1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a",
