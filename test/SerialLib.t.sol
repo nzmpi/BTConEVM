@@ -34,17 +34,20 @@ contract TestSerialLib is BaseTest {
         assertEq(result.x, pubKey.x, "Wrong compressed public key x-coordinate");
         assertEq(result.y, pubKey.y, "Wrong compressed public key y-coordinate");
 
+        // multiple reverts don't work with internal function calls
+        Mock mock = new Mock();
+
         PKSerlial = hex"04fff3423acb";
         vm.expectRevert("Wrong data length");
-        PKSerlial.parsePublicKey();
+        mock.parsePublicKey(PKSerlial);
 
         PKSerlial = hex"02fff3423acb";
         vm.expectRevert("Wrong data length");
-        PKSerlial.parsePublicKey();
+        mock.parsePublicKey(PKSerlial);
 
         PKSerlial = hex"fff3423acb";
         vm.expectRevert(SerialLib.WrongPrefix.selector);
-        PKSerlial.parsePublicKey();
+        mock.parsePublicKey(PKSerlial);
     }
 
     function test_serializeSignature() public view {
@@ -59,5 +62,13 @@ contract TestSerialLib is BaseTest {
         expected =
             hex"304402203bb237e75196b68bec2c415c2efde31364557a50681df03bbc1b6bd3dfcb4d4602203a3ec12e15d72a071b042a4e59cf52ec4f5b2fc664d3ff5f82be08c32e2d4553";
         assertEq(result, expected, "Another signature should be serialized correctly");
+    }
+}
+
+contract Mock {
+    using SerialLib for bytes;
+
+    function parsePublicKey(bytes memory _data) external pure returns (Point memory) {
+        return _data.parsePublicKey();
     }
 }

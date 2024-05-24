@@ -36,22 +36,33 @@ contract TestBase58 is BaseTest {
             assertEq(data[i].encode().decode(), data[i], "Should decode data");
         }
 
+        // multiple reverts don't work with internal function calls
+        Mock mock = new Mock();
+
         vm.expectRevert(Base58.WrongData.selector);
-        bytes("").decode();
+        mock.decode(bytes(""));
 
         vm.expectRevert(Base58.NotBase58.selector);
-        bytes("0").decode();
+        mock.decode(bytes("0"));
 
         vm.expectRevert(Base58.NotBase58.selector);
-        bytes("O").decode();
+        mock.decode(bytes("O"));
 
         vm.expectRevert(Base58.NotBase58.selector);
-        bytes("I").decode();
+        mock.decode(bytes("I"));
 
         vm.expectRevert(Base58.NotBase58.selector);
-        bytes("l").decode();
+        mock.decode(bytes("l"));
 
         vm.expectRevert(Base58.NotBase58.selector);
-        bytes("!").decode();
+        mock.decode(bytes("!"));
+    }
+}
+
+contract Mock {
+    using Base58 for bytes;
+
+    function decode(bytes memory _data) external pure returns (bytes memory) {
+        return _data.decode();
     }
 }
