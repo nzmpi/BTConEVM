@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Point, Signature} from "./Structs.sol";
 import {ECBTC} from "./ECBTC.sol";
 import {Base58} from "./Base58.sol";
+import {Utils} from "./Utils.sol";
 
 /**
  * @title SerialLib - Serialization Library
@@ -13,8 +14,10 @@ import {Base58} from "./Base58.sol";
 library SerialLib {
     using ECBTC for uint256;
     using Base58 for bytes;
+    using Utils for bytes;
+    using Utils for uint256;
 
-    error WrongPrefix();
+    error BadData();
 
     /**
      * Serializes public key
@@ -42,45 +45,94 @@ library SerialLib {
      * @return pubKey - The deserialized public key
      */
     function parsePublicKey(bytes memory _data) internal pure returns (Point memory pubKey) {
+        if (_data.length == 0) revert BadData();
         bytes1 prefix = _data[0];
         if (prefix == 0x04) {
-            require(_data.length == 65, "Wrong data length");
+            if (_data.length != 65) revert BadData();
             assembly {
-                // 33 = 32 + 1 = length slot + prefix
+                // 33 = 32 + 1 = length slot + prefix byte
                 mcopy(pubKey, add(_data, 33), 32)
                 mcopy(add(pubKey, 32), add(_data, 65), 32)
             }
         } else if (prefix == 0x02 || prefix == 0x03) {
-            require(_data.length == 33, "Wrong data length");
+            if (_data.length != 33) revert BadData();
             assembly {
                 mcopy(pubKey, add(_data, 33), 32)
             }
             pubKey.y = pubKey.x.deriveY(prefix);
         } else {
-            revert WrongPrefix();
+            revert BadData();
         }
     }
 
     /**
      * Serializes signature (DER format)
      * @param _sig - The signature to be serialized
-     * @return res - Serialized signature
+     * @return res - The serialized signature
      */
     function serializeSignature(Signature memory _sig) internal pure returns (bytes memory res) {
-        res = firstByteCheck(bytes32(_sig.s));
+        res = firstByteCheck(_sig.s.uint256ToBytes());
         // 0x02 - a marker
         res = bytes.concat(bytes1(0x02), bytes1(uint8(res.length)), res);
-        bytes memory r = firstByteCheck(bytes32(_sig.r));
+        bytes memory r = firstByteCheck(_sig.r.uint256ToBytes());
         res = bytes.concat(bytes1(0x02), bytes1(uint8(r.length)), r, res);
         // 0x30 - a marker
         res = bytes.concat(bytes1(0x30), bytes1(uint8(res.length)), res);
     }
 
     /**
+     * Deserializes signature
+     * @param _data - The data to be deserialized
+     * @return sig - The deserialized signature
+     */
+    function parseSignature(bytes memory _data) internal pure returns (Signature memory sig) {
+        if (_data.length < 8) revert BadData();
+        if (_data[0] != 0x30 || _data[2] != 0x02) revert BadData();
+
+        // r
+        uint256 len = uint8(bytes1(_data[3]));
+        bytes memory temp = new bytes(len);
+        if (_data[4] == 0x00) {
+            assembly {
+                mstore(temp, sub(len, 1))
+                // 37 = 32 + 5, we skip 2 markers, 2 length bytes and prepended 0x00
+                mcopy(add(temp, 32), add(_data, 37), sub(len, 1))
+            }
+            sig.r = temp.bytesToUint256();
+        } else {
+            assembly {
+                // 36 = 32 + 4, we skip 2 markers and 2 length bytes
+                mcopy(add(temp, 32), add(_data, 36), len)
+            }
+            sig.r = temp.bytesToUint256();
+        }
+
+        // s
+        if (_data[len + 4] != 0x02) revert BadData();
+        len += 5;
+        uint256 lenS = uint8(bytes1(_data[len]));
+        ++len;
+        if (_data[len] == 0x00) {
+            assembly {
+                mstore(temp, sub(lenS, 1))
+                // 33 = 32 + 1, we skip prepended 0x00
+                mcopy(add(temp, 32), add(_data, add(33, len)), sub(lenS, 1))
+            }
+            sig.s = temp.bytesToUint256();
+        } else {
+            assembly {
+                mstore(temp, lenS)
+                mcopy(add(temp, 32), add(_data, add(32, len)), lenS)
+            }
+            sig.s = temp.bytesToUint256();
+        }
+    }
+
+    /**
      * Serializes private key (WIF format)
      * @param _privKey - The private key to be serialized
      * @param _isCompressed - Indicates whether the public key was compressed to derive the address
-     * @return res - Serialized private key
+     * @return res - The serialized private key
      */
     function serializePrivateKey(uint256 _privKey, bool _isCompressed) internal pure returns (bytes memory res) {
         if (_isCompressed) {
@@ -100,7 +152,7 @@ library SerialLib {
      * @param x - s or r from signature
      * @return The result
      */
-    function firstByteCheck(bytes32 x) private pure returns (bytes memory) {
-        return bytes1(x) > 0x80 ? bytes.concat(bytes1(0x00), bytes32(x)) : bytes.concat(bytes32(x));
+    function firstByteCheck(bytes memory x) internal pure returns (bytes memory) {
+        return x[0] > 0x80 ? bytes.concat(bytes1(0x00), x) : x;
     }
 }
