@@ -26,8 +26,6 @@ contract TestUtils is BaseTest {
             hex"ac7f604620aa1340c3b9d43fb40842ddeda161c6"
         ];
 
-        console.logBytes("op_1");
-
         for (uint256 i; i < data.length; ++i) {
             assertEq(data[i].hash160(), expected[i], "Should correctly hash160 data");
         }
