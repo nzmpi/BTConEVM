@@ -62,10 +62,12 @@ library Utils {
 
     /**
      * Converts uint256 to bytes
+     * @dev The result is not padded with zeros
      * @param _data - The data to be converted
      * @return res - The converted data
      */
     function uint256ToBytes(uint256 _data) internal pure returns (bytes memory res) {
+        if (_data == 0) return hex"00";
         res = bytes.concat(bytes32(_data));
 
         // counting leading zeroes
