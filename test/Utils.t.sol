@@ -6,6 +6,7 @@ import "../src/lib/Utils.sol";
 
 contract TestUtils is BaseTest {
     using Utils for bytes;
+    using Utils for uint256;
 
     bytes[6] data = [
         bytes(""),
@@ -14,6 +15,14 @@ contract TestUtils is BaseTest {
         hex"deadbeef",
         hex"2f7928068d9b8596d05493a00cd4b0b2bcdefc7523dc7beaf27618a0e6c90e43",
         hex"c5d0837b49d3ab65cbdfbfa2d1772b9b0f9420c32d85df192e9ad2b3d6fa8490000e84d257536cc1d505c31dbc0d9ad730079fe7afbe19d171a7adb0629c0d78c8"
+    ];
+    bytes[6] numbers = [
+        bytes(hex"00"),
+        bytes(hex"24"),
+        bytes(hex"566ef2"),
+        bytes(hex"ffffffffffffad0f"),
+        bytes(hex"0279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76"),
+        bytes(hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
     ];
 
     function test_hash160() public view {
@@ -46,7 +55,7 @@ contract TestUtils is BaseTest {
         }
     }
 
-    function test_reverse_endian() public view {
+    function test_convertEndian() public view {
         bytes[6] memory littleEndians = [
             bytes(hex""),
             hex"00",
@@ -60,5 +69,66 @@ contract TestUtils is BaseTest {
             assertEq(data[i].convertEndian(), littleEndians[i], "Should correctly convert to little endian");
             assertEq(littleEndians[i].convertEndian(), data[i], "Should correctly convert to big endian");
         }
+    }
+
+    function test_bytesToUint256() public {
+        uint256[6] memory expected = [
+            0,
+            36,
+            5664498,
+            18446744073709530383,
+            1120086173837929590502398074382113721969058458401023110029408379327383633526,
+            115792089237316195423570985008687907853269984665640564039457584007913129639935
+        ];
+        for (uint256 i; i < numbers.length; ++i) {
+            assertEq(numbers[i].bytesToUint256(), expected[i], "Should correctly convert bytes to uint256");
+        }
+
+        // multiple reverts don't work with internal function calls
+        Mock mock = new Mock();
+        vm.expectRevert(Utils.WrongLength.selector);
+        mock.bytesToUint256(bytes(hex""));
+
+        vm.expectRevert(Utils.WrongLength.selector);
+        mock.bytesToUint256(bytes(hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+    }
+
+    function test_fuzzing_bytesToUint256(bytes calldata x) public {
+        if (x.length == 0 || x.length > 32) {
+            vm.expectRevert(Utils.WrongLength.selector);
+            x.bytesToUint256();
+        } else {
+            bytes memory res = x.bytesToUint256().uint256ToBytes();
+            if (res.length != x.length) {
+                assembly {
+                    let len := mload(res)
+                    mstore(res, 32)
+                    let start := add(res, 32)
+                    let shift := mul(sub(32, len), 8)
+                    mstore(start, shr(shift, mload(start)))
+                }
+            }
+            assertEq(res, x, "Should correctly fuzz bytes");
+        }
+    }
+
+    function test_uint256ToBytes() public view {
+        for (uint256 i; i < numbers.length; ++i) {
+            assertEq(
+                numbers[i].bytesToUint256().uint256ToBytes(), numbers[i], "Should correctly convert uint256 to bytes"
+            );
+        }
+    }
+
+    function test_fuzzing_uint256ToBytes(uint256 x) public pure {
+        assertEq(x.uint256ToBytes().bytesToUint256(), x, "Should correctly fuzz uint256");
+    }
+}
+
+contract Mock {
+    using Utils for bytes;
+
+    function bytesToUint256(bytes memory _data) external pure returns (uint256 res) {
+        return _data.bytesToUint256();
     }
 }
