@@ -99,12 +99,13 @@ contract TestUtils is BaseTest {
             x.bytesToUint256();
         } else {
             bytes memory res = x.bytesToUint256().uint256ToBytes();
-            if (res.length != x.length) {
+            uint256 xLen = x.length;
+            if (res.length != xLen) {
                 assembly {
-                    let len := mload(res)
-                    mstore(res, 32)
+                    let resLen := mload(res)
+                    mstore(res, xLen)
                     let start := add(res, 32)
-                    let shift := mul(sub(32, len), 8)
+                    let shift := mul(sub(xLen, resLen), 8)
                     mstore(start, shr(shift, mload(start)))
                 }
             }
