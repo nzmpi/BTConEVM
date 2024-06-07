@@ -152,7 +152,7 @@ library SerialLib {
      * @param x - s or r from signature
      * @return The result
      */
-    function firstByteCheck(bytes memory x) internal pure returns (bytes memory) {
+    function firstByteCheck(bytes memory x) private pure returns (bytes memory) {
         return x[0] > 0x80 ? bytes.concat(bytes1(0x00), x) : x;
     }
 }
