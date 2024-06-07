@@ -10,7 +10,9 @@ contract TestSerialLib is BaseTest {
     using SerialLib for Point;
     using SerialLib for Signature;
     using SerialLib for bytes;
+    using SerialLib for uint256;
     using SigLib for uint256;
+    using ECBTC for uint256;
 
     function test_serializePublicKey() public view {
         bytes memory result = pubKey.serializePublicKey(false);
@@ -23,7 +25,24 @@ contract TestSerialLib is BaseTest {
         assertEq(result, expected, "Compressed public key should be serialized correctly");
     }
 
-    function test_parsPublicKeye() public {
+    function test_fuzzing_serializePublicKey(uint256 _privateKey, bool _isCompressed) public pure {
+        Point memory pubKey_ = _privateKey.mulG();
+        bytes memory result = pubKey_.serializePublicKey(_isCompressed);
+        bytes memory expected;
+        if (_isCompressed) {
+            if (pubKey_.y % 2 == 0) {
+                expected = bytes.concat(bytes1(0x02), bytes32(pubKey_.x));
+            } else {
+                expected = bytes.concat(bytes1(0x03), bytes32(pubKey_.x));
+            }
+            assertEq(result, expected, "Compressed public key should be serialized correctly");
+        } else {
+            expected = bytes.concat(bytes1(0x04), bytes32(pubKey_.x), bytes32(pubKey_.y));
+            assertEq(result, expected, "Uncompressed public key should be serialized correctly");
+        }
+    }
+
+    function test_parsePublicKey() public {
         bytes memory PKSerlial = pubKey.serializePublicKey(false);
         Point memory result = PKSerlial.parsePublicKey();
         assertEq(result.x, pubKey.x, "Wrong uncompressed public key x-coordinate");
@@ -38,16 +57,23 @@ contract TestSerialLib is BaseTest {
         Mock mock = new Mock();
 
         PKSerlial = hex"04fff3423acb";
-        vm.expectRevert("Wrong data length");
+        vm.expectRevert(SerialLib.BadData.selector);
         mock.parsePublicKey(PKSerlial);
 
         PKSerlial = hex"02fff3423acb";
-        vm.expectRevert("Wrong data length");
+        vm.expectRevert(SerialLib.BadData.selector);
         mock.parsePublicKey(PKSerlial);
 
         PKSerlial = hex"fff3423acb";
-        vm.expectRevert(SerialLib.WrongPrefix.selector);
+        vm.expectRevert(SerialLib.BadData.selector);
         mock.parsePublicKey(PKSerlial);
+    }
+
+    function test_fuzzing_parsePublicKey(uint256 _privateKey, bool _isCompressed) public pure {
+        Point memory pubKey_ = _privateKey.mulG();
+        Point memory result = pubKey_.serializePublicKey(_isCompressed).parsePublicKey();
+        assertEq(result.x, pubKey_.x, "Wrong public key x-coordinate");
+        assertEq(result.y, pubKey_.y, "Wrong public key y-coordinate");
     }
 
     function test_serializeSignature() public view {
@@ -62,6 +88,27 @@ contract TestSerialLib is BaseTest {
         expected =
             hex"304402203bb237e75196b68bec2c415c2efde31364557a50681df03bbc1b6bd3dfcb4d4602203a3ec12e15d72a071b042a4e59cf52ec4f5b2fc664d3ff5f82be08c32e2d4553";
         assertEq(result, expected, "Another signature should be serialized correctly");
+    }
+
+    function test_parseSignature() public view {
+        Signature memory sig = messageHash.sign(privateKey);
+        bytes memory sigSerial = sig.serializeSignature();
+        Signature memory result = sigSerial.parseSignature();
+        assertEq(result.r, sig.r, "Wrong signature r");
+        assertEq(result.s, sig.s, "Wrong signature s");
+
+        sig = messageHash.sign(anotherPrivateKey);
+        sigSerial = sig.serializeSignature();
+        result = sigSerial.parseSignature();
+        assertEq(result.r, sig.r, "Wrong another signature r");
+        assertEq(result.s, sig.s, "Wrong another signature s");
+    }
+
+    function test_fuzzing_parseSignature(uint256 _privateKey) public view {
+        Signature memory sig = messageHash.sign(_privateKey);
+        Signature memory result = sig.serializeSignature().parseSignature();
+        assertEq(result.r, sig.r, "Wrong signature r");
+        assertEq(result.s, sig.s, "Wrong signature s");
     }
 }
 
