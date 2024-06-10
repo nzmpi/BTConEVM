@@ -22,7 +22,7 @@ contract TestVarint is BaseTest {
     }
 
     function test_fromVarint() public {
-        for (uint256 i = 0; i < data.length; i++) {
+        for (uint256 i; i < data.length; i++) {
             assertEq(data[i].toVarint().fromVarint(), data[i], "Should correctly convert from varint");
         }
 
@@ -37,6 +37,14 @@ contract TestVarint is BaseTest {
 
         vm.expectRevert(Varint.NotVarint.selector);
         mock.fromVarint(hex"ffffffffffffffffffff");
+    }
+
+    function test_fuzzing_fromVarint(uint256 x) public {
+        if (x >= type(uint64).max) {
+            vm.expectRevert(Varint.VarintOverflow.selector);
+            x.toVarint();
+        }
+        assertEq(x.toVarint().fromVarint(), x, "Should correctly fuzz");
     }
 }
 
