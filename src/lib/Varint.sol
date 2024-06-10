@@ -20,15 +20,15 @@ library Varint {
      * @return res - The converted varint
      */
     function toVarint(uint256 _x) internal pure returns (bytes memory) {
-        if (_x < 253) {
+        if (_x < type(uint8).max - 2) {
             return bytes.concat(bytes1(uint8(_x)));
-        } else if (_x < 65535) {
+        } else if (_x < type(uint16).max) {
             bytes memory littleEndian = bytes.concat(bytes2(uint16(_x))).convertEndian();
             return bytes.concat(hex"fd", littleEndian);
-        } else if (_x < 4294967295) {
+        } else if (_x < type(uint32).max) {
             bytes memory littleEndian = bytes.concat(bytes4(uint32(_x))).convertEndian();
             return bytes.concat(hex"fe", littleEndian);
-        } else if (_x < 18446744073709551615) {
+        } else if (_x < type(uint64).max) {
             bytes memory littleEndian = bytes.concat(bytes8(uint64(_x))).convertEndian();
             return bytes.concat(hex"ff", littleEndian);
         } else {
