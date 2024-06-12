@@ -5,6 +5,7 @@ import "./lib/Utils.sol";
 import {SerialLib} from "./lib/SerialLib.sol";
 import {SigLib} from "./lib/SigLib.sol";
 import {Utils} from "./lib/Utils.sol";
+import {Varint} from "./lib/Varint.sol";
 
 /**
  * @title Script
@@ -16,6 +17,7 @@ contract Script {
     using Utils for uint256;
     using SerialLib for bytes;
     using SigLib for uint256;
+    using Varint for bytes;
 
     bytes[] stack;
     mapping(bytes32 opcode => function(bytes calldata, uint256) returns (uint256)) opcodes;
@@ -39,6 +41,7 @@ contract Script {
         opcodes[hex"4d"] = op_pushdata2;
         opcodes[hex"4e"] = op_pushdata4;
         opcodes[hex"51"] = op_1;
+        opcodes[hex"52"] = op_2;
         opcodes[hex"69"] = op_verify;
         opcodes[hex"75"] = op_drop;
         opcodes[hex"76"] = op_dup;
@@ -60,16 +63,29 @@ contract Script {
     function execute(bytes calldata script) external {
         uint256 len = script.length;
         if (len == 0) revert InvalidScript();
-        len = uint8(bytes1(script[0]));
-        if (len == 0) revert InvalidScript();
-        // the pointer starts at 1
-        uint256 ptr = 1;
-        // an opcode or data length that should be pushed to the stack
-        bytes32 op;
+        // an opcode or data length
+        bytes32 op = script[0];
+        // the pointer
+        uint256 ptr;
+        if (op == 0) {
+            revert InvalidScript();
+        } else if (op == hex"fd") {
+            len = bytes(script[0:3]).fromVarint();
+            ptr = 3;
+        } else if (op == hex"fe") {
+            len = bytes(script[0:5]).fromVarint();
+            ptr = 5;
+        } else if (op == hex"ff") {
+            len = bytes(script[0:9]).fromVarint();
+            ptr = 9;
+        } else {
+            len = uint8(bytes1(op));
+            ptr = 1;
+        }
         // we read the script byte by byte until we reach the end
         while (ptr <= len) {
             op = script[ptr];
-            if (op > 0x00 && op < bytes1(0x4c)) {
+            if (op > 0 && op < hex"4c") {
                 ptr = op_pushdata1(script, --ptr);
             } else {
                 ptr = opcodes[op](script, ptr);
@@ -113,7 +129,7 @@ contract Script {
      */
     function op_pushdata2(bytes calldata _data, uint256 _ptr) internal returns (uint256) {
         ++_ptr;
-        uint256 len = uint16(bytes2(bytes.concat(_data[_ptr:_ptr + 2]).convertEndian()));
+        uint256 len = uint16(bytes2(bytes(_data[_ptr:_ptr + 2]).convertEndian()));
         // max length is 520 bytes
         if (len > 520) revert InvalidScript();
         _ptr += 2;
@@ -130,10 +146,10 @@ contract Script {
      */
     function op_pushdata4(bytes calldata _data, uint256 _ptr) internal returns (uint256) {
         ++_ptr;
-        uint256 len = uint32(bytes4(bytes.concat(_data[_ptr:_ptr + 4]).convertEndian()));
+        uint256 len = uint32(bytes4(bytes(_data[_ptr:_ptr + 4]).convertEndian()));
         // max length is 520 bytes
         if (len > 520) revert InvalidScript();
-        _ptr = _ptr + 4;
+        _ptr += 4;
         stack.push(_data[_ptr:_ptr + len]);
         return _ptr + len;
     }
@@ -145,6 +161,16 @@ contract Script {
      */
     function op_1(bytes calldata, uint256 _ptr) internal returns (uint256) {
         stack.push(hex"01");
+        return ++_ptr;
+    }
+
+    /**
+     * Pushes 2 to the stack
+     * @param _ptr - The pointer
+     * @return _ptr - The updated pointer
+     */
+    function op_2(bytes calldata, uint256 _ptr) internal returns (uint256) {
+        stack.push(hex"02");
         return ++_ptr;
     }
 
@@ -201,10 +227,10 @@ contract Script {
         uint256 len = stack.length;
         if (keccak256(stack[len - 1]) == keccak256(stack[len - 2])) {
             stack.pop();
-            stack[len - 1] = hex"01";
+            stack[len - 2] = hex"01";
         } else {
             stack.pop();
-            stack[len - 1] = hex"";
+            stack[len - 2] = hex"";
         }
         return ++_ptr;
     }
