@@ -14,7 +14,7 @@ library Utils {
      * @param _data - The data to hash
      * @return res - Hashed data
      */
-    function hash160(bytes memory _data) internal pure returns (bytes32) {
+    function hash160(bytes memory _data) internal pure returns (bytes20) {
         return ripemd160(bytes.concat(sha256(_data)));
     }
 
