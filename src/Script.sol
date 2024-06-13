@@ -270,12 +270,12 @@ contract Script {
      * @return _ptr - The updated pointer
      */
     function op_add(bytes calldata, uint256 _ptr) internal checkStack2 returns (uint256) {
-        int256 a = _getNumber();
-        int256 b = _getNumber();
+        int32 a = _getNumber();
+        int32 b = _getNumber();
 
         // overflow is allowed
         unchecked {
-            a = (a + b) % type(int32).max;
+            a += b;
         }
         _pushNumber(a);
         return ++_ptr;
@@ -288,12 +288,12 @@ contract Script {
      * @return _ptr - The updated pointer
      */
     function op_sub(bytes calldata, uint256 _ptr) internal checkStack2 returns (uint256) {
-        int256 a = _getNumber();
-        int256 b = _getNumber();
+        int32 a = _getNumber();
+        int32 b = _getNumber();
 
         // overflow is allowed
         unchecked {
-            a = (a - b) % type(int32).max;
+            a -= b;
         }
         _pushNumber(a);
         return ++_ptr;
@@ -329,7 +329,7 @@ contract Script {
     function op_checksig(bytes calldata, uint256 _ptr) internal checkStack2 returns (uint256) {
         uint256 len = stack.length - 1;
         // TODO
-        uint256 messageHash;
+        uint256 messageHash = 42;
         bytes memory pubKey = stack[len];
         --len;
         bytes memory sig = stack[len];
@@ -345,9 +345,9 @@ contract Script {
     /**
      * Gets the number from the top of the stack
      * @dev The number is limited to signed 32-bit integers and is in little-endian
-     * @return res - The number
+     * @return The result
      */
-    function _getNumber() private returns (int256 res) {
+    function _getNumber() private returns (int32) {
         bytes memory num = stack[stack.length - 1].convertEndian();
         stack.pop();
         if (num.length == 0) return 0;
@@ -361,8 +361,9 @@ contract Script {
             num[0] = num[0] & 0x7f;
         }
 
-        res = isNegative ? -int256(num.bytesToUint256()) : int256(num.bytesToUint256());
+        int256 res = isNegative ? -int256(num.bytesToUint256()) : int256(num.bytesToUint256());
         if (res > type(int32).max || res < type(int32).min) revert InvalidScript();
+        return int32(res);
     }
 
     /**
@@ -370,33 +371,32 @@ contract Script {
      * @dev The number is limited to signed 32-bit integers and is in little-endian
      * @param _num - The number
      */
-    function _pushNumber(int256 _num) private {
-        if (_num > type(int32).max || _num < type(int32).min) {
-            revert InvalidScript();
-        } else if (_num == 0) {
+    function _pushNumber(int32 _num) private {
+        if (_num == 0) {
             stack.push(hex"");
             return;
         }
 
-        bytes memory num;
-        if (_num < 0) {
-            num = uint256(-_num).uint256ToBytes().convertEndian();
+        int256 num = _num;
+        bytes memory res;
+        if (num < 0) {
+            res = uint256(-num).uint256ToBytes().convertEndian();
             // if the highest bit is already set to 1,
             // add a byte with the highest bit set to 1
-            if (num[num.length - 1] & 0x80 == 0x80) {
-                num = bytes.concat(num, hex"80");
+            if (res[res.length - 1] & 0x80 == 0x80) {
+                res = bytes.concat(res, hex"80");
             } else {
-                num[num.length - 1] = num[num.length - 1] | 0x80;
+                res[res.length - 1] = res[res.length - 1] | 0x80;
             }
         } else {
-            num = uint256(_num).uint256ToBytes().convertEndian();
+            res = uint256(int256(num)).uint256ToBytes().convertEndian();
             // if the highest bit is already set to 1,
             // add a byte with the highest bit set to 0
-            if (num[num.length - 1] & 0x80 == 0x80) {
-                num = bytes.concat(num, hex"00");
+            if (res[res.length - 1] & 0x80 == 0x80) {
+                res = bytes.concat(res, hex"00");
             }
         }
 
-        stack.push(num);
+        stack.push(res);
     }
 }
