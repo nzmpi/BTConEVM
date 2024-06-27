@@ -8,6 +8,7 @@ pragma solidity ^0.8.24;
  */
 library Utils {
     error WrongLength();
+    error WrongRead();
 
     /**
      * Hash160
@@ -80,10 +81,26 @@ library Utils {
             }
         }
         uint256 len = 32 - zeroes;
+        res = readFromMemory(res, zeroes, len);
+    }
+
+    /**
+     * Reads data from memory
+     * @param _from - The data to be read from
+     * @param _offset - The offset in the data
+     * @param _length - The number of bytes to read
+     * @return res - The read data
+     */
+    function readFromMemory(bytes memory _from, uint256 _offset, uint256 _length)
+        internal
+        pure
+        returns (bytes memory res)
+    {
+        if (_offset >= _from.length || _length > _from.length - _offset) revert WrongRead();
+
+        res = new bytes(_length);
         assembly {
-            mstore(res, len)
-            let start := add(res, 32)
-            mcopy(start, add(start, zeroes), len)
+            mcopy(add(res, 32), add(_from, add(_offset, 32)), _length)
         }
     }
 }
