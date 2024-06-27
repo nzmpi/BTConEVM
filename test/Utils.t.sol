@@ -93,7 +93,7 @@ contract TestUtils is BaseTest {
         mock.bytesToUint256(bytes(hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
     }
 
-    function test_fuzzing_bytesToUint256(bytes calldata x) public {
+    function test_fuzz_bytesToUint256(bytes calldata x) public {
         if (x.length == 0 || x.length > 32) {
             vm.expectRevert(Utils.WrongLength.selector);
             x.bytesToUint256();
@@ -121,8 +121,28 @@ contract TestUtils is BaseTest {
         }
     }
 
-    function test_fuzzing_uint256ToBytes(uint256 x) public pure {
+    function test_fuzz_uint256ToBytes(uint256 x) public pure {
         assertEq(x.uint256ToBytes().bytesToUint256(), x, "Should correctly fuzz uint256");
+    }
+
+    function test_readFromMemory() public {
+        assertEq(data[1].readFromMemory(0, 1), hex"00", "Wrong read 1");
+        assertEq(data[3].readFromMemory(2, 2), hex"beef", "Wrong read 2");
+        assertEq(data[5].readFromMemory(10, 7), hex"bfa2d1772b9b0f", "Wrong read 3");
+        assertEq(
+            data[5].readFromMemory(38, 27), hex"6cc1d505c31dbc0d9ad730079fe7afbe19d171a7adb0629c0d78c8", "Wrong read 4"
+        );
+
+        // multiple reverts don't work with internal function calls
+        Mock mock = new Mock();
+        vm.expectRevert(Utils.WrongRead.selector);
+        mock.readFromMemory(data[0], 0, 1);
+
+        vm.expectRevert(Utils.WrongRead.selector);
+        mock.readFromMemory(data[4], 31, 2);
+
+        vm.expectRevert(Utils.WrongRead.selector);
+        mock.readFromMemory(data[4], 35, 2);
     }
 }
 
@@ -131,5 +151,13 @@ contract Mock {
 
     function bytesToUint256(bytes memory _data) external pure returns (uint256 res) {
         return _data.bytesToUint256();
+    }
+
+    function readFromMemory(bytes memory _from, uint256 _offset, uint256 _length)
+        external
+        pure
+        returns (bytes memory res)
+    {
+        return _from.readFromMemory(_offset, _length);
     }
 }
