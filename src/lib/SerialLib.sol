@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Point, Signature} from "./Structs.sol";
+import "./Structs.sol";
 import {ECBTC} from "./ECBTC.sol";
 import {Base58} from "./Base58.sol";
 import {Utils} from "./Utils.sol";
+import {Varint} from "./Varint.sol";
 
 /**
  * @title SerialLib - Serialization Library
@@ -16,6 +17,8 @@ library SerialLib {
     using Base58 for bytes;
     using Utils for bytes;
     using Utils for uint256;
+    using Varint for uint256;
+    using Varint for bytes;
 
     error BadData();
 
@@ -144,6 +147,73 @@ library SerialLib {
             res = bytes.concat(bytes1(0x80), bytes32(_privKey));
             res = bytes.concat(res, bytes4(sha256(bytes.concat(sha256(res))))).encode();
         }
+    }
+
+    /**
+     * Serializes transaction
+     * @param _tx - The transaction to be serialized
+     * @return res - The serialized transaction
+     */
+    function serializeTransaction(Transaction memory _tx) internal pure returns (bytes memory res) {
+        res = bytes.concat(_tx.version).convertEndian();
+        uint256 len = _tx.inputs.length;
+        if (len == 0) revert BadData();
+        res = bytes.concat(res, len.toVarint());
+        for (uint256 i; i < len; ++i) {
+            res = bytes.concat(
+                res,
+                bytes.concat(_tx.inputs[i].txId).convertEndian(),
+                bytes.concat(_tx.inputs[i].vout).convertEndian(),
+                _tx.inputs[i].scriptSig,
+                bytes.concat(_tx.inputs[i].sequence).convertEndian()
+            );
+        }
+
+        len = _tx.outputs.length;
+        if (len == 0) revert BadData();
+        res = bytes.concat(res, len.toVarint());
+        for (uint256 i; i < len; ++i) {
+            res = bytes.concat(res, bytes.concat(_tx.outputs[i].amount).convertEndian(), _tx.outputs[i].scriptPubKey);
+        }
+
+        res = bytes.concat(res, bytes.concat(_tx.locktime).convertEndian());
+    }
+
+    /**
+     * Parses transaction
+     * @param _data - The data to be parsed
+     * @return res - The parsed transaction
+     */
+    function parseTransaction(bytes memory _data) internal pure returns (Transaction memory res) {
+        res.version = bytes4(_data.readFromMemory(0, 4).convertEndian());
+        (uint256 len, uint256 ptr) = _data.fromVarint(4);
+        if (len == 0) revert BadData();
+
+        res.inputs = new TxInput[](len);
+        uint256 lenScript;
+        uint256 ptrScript;
+        for (uint256 i; i < len; ++i) {
+            res.inputs[i].txId = bytes32(_data.readFromMemory(ptr, 32).convertEndian());
+            res.inputs[i].vout = bytes4(_data.readFromMemory(ptr + 32, 4).convertEndian());
+            ptr += 36;
+            (lenScript, ptrScript) = _data.fromVarint(ptr);
+            res.inputs[i].scriptSig = _data.readFromMemory(ptr, lenScript + ptrScript - ptr);
+            ptr = ptrScript + lenScript;
+            res.inputs[i].sequence = bytes4(_data.readFromMemory(ptr, 4).convertEndian());
+            ptr += 4;
+        }
+
+        (len, ptr) = _data.fromVarint(ptr);
+        res.outputs = new TxOutput[](len);
+        for (uint256 i; i < len; ++i) {
+            res.outputs[i].amount = bytes8(_data.readFromMemory(ptr, 8).convertEndian());
+            ptr += 8;
+            (lenScript, ptrScript) = _data.fromVarint(ptr);
+            res.outputs[i].scriptPubKey = _data.readFromMemory(ptr, lenScript + ptrScript - ptr);
+            ptr = ptrScript + lenScript;
+        }
+
+        res.locktime = bytes4(_data.readFromMemory(ptr, 4).convertEndian());
     }
 
     /**

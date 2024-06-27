@@ -16,3 +16,31 @@ struct Signature {
     uint256 r;
     uint256 s;
 }
+
+/**
+ * @notice Represents a transaction input
+ */
+struct TxInput {
+    bytes32 txId;
+    bytes4 vout;
+    bytes4 sequence;
+    bytes scriptSig;
+}
+
+/**
+ * @notice Represents a transaction output
+ */
+struct TxOutput {
+    bytes8 amount;
+    bytes scriptPubKey;
+}
+
+/**
+ * @notice Represents a transaction
+ */
+struct Transaction {
+    bytes4 version;
+    bytes4 locktime;
+    TxInput[] inputs;
+    TxOutput[] outputs;
+}
