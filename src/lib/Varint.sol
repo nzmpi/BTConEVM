@@ -20,15 +20,15 @@ library Varint {
      * @return res - The converted varint
      */
     function toVarint(uint256 _x) internal pure returns (bytes memory) {
-        if (_x < type(uint8).max - 2) {
+        if (_x <= type(uint8).max - 3) {
             return bytes.concat(bytes1(uint8(_x)));
-        } else if (_x < type(uint16).max) {
+        } else if (_x <= type(uint16).max) {
             bytes memory littleEndian = bytes.concat(bytes2(uint16(_x))).convertEndian();
             return bytes.concat(hex"fd", littleEndian);
-        } else if (_x < type(uint32).max) {
+        } else if (_x <= type(uint32).max) {
             bytes memory littleEndian = bytes.concat(bytes4(uint32(_x))).convertEndian();
             return bytes.concat(hex"fe", littleEndian);
-        } else if (_x < type(uint64).max) {
+        } else if (_x <= type(uint64).max) {
             bytes memory littleEndian = bytes.concat(bytes8(uint64(_x))).convertEndian();
             return bytes.concat(hex"ff", littleEndian);
         } else {
@@ -37,25 +37,27 @@ library Varint {
     }
 
     /**
-     * Converts varint to uint256
-     * @param _data - The varint to convert
-     * @return res - The converted uint256
+     * Converts varint to uint256 from a given data of variable length
+     * @param _data - The data that contains the varint
+     * @param _offset - The offset in data where the varint starts
+     * @return num - The converted uint256
+     * @return offset - The updated offset
      */
-    function fromVarint(bytes memory _data) internal pure returns (uint256) {
-        uint256 len = _data.length;
-        if (len == 1) {
-            return uint256(uint8(_data[0]));
-        } else if (len == 3 || len == 5 || len == 9) {
-            --len;
-            bytes memory bigEndian = new bytes(len);
-            assembly {
-                mcopy(add(bigEndian, 0x20), add(_data, 0x21), len)
-            }
-            if (len == 2) return uint16(bytes2(bigEndian.convertEndian()));
-            else if (len == 4) return uint32(bytes4(bigEndian.convertEndian()));
-            else return uint64(bytes8(bigEndian.convertEndian()));
-        } else {
-            revert NotVarint();
+    function fromVarint(bytes memory _data, uint256 _offset) internal pure returns (uint256 num, uint256 offset) {
+        if (_data.length == 0) revert NotVarint();
+        num = uint8(_data[_offset]);
+        offset = _offset + 1;
+        if (num < 253) {
+            return (num, offset);
+        } else if (num == 0xfd) {
+            num = uint16(bytes2(_data.readFromMemory(offset, 2).convertEndian()));
+            offset += 2;
+        } else if (num == 0xfe) {
+            num = uint32(bytes4(_data.readFromMemory(offset, 4).convertEndian()));
+            offset += 4;
+        } else if (num == 0xff) {
+            num = uint64(bytes8(_data.readFromMemory(offset, 8).convertEndian()));
+            offset += 8;
         }
     }
 }
