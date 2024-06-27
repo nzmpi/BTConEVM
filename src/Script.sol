@@ -63,25 +63,12 @@ contract Script {
     function execute(bytes calldata script) external {
         uint256 len = script.length;
         if (len == 0) revert InvalidScript();
-        // an opcode or data length
-        bytes32 op = script[0];
         // the pointer
         uint256 ptr;
-        if (op == 0) {
-            revert InvalidScript();
-        } else if (op == hex"fd") {
-            len = bytes(script[0:3]).fromVarint();
-            ptr = 3;
-        } else if (op == hex"fe") {
-            len = bytes(script[0:5]).fromVarint();
-            ptr = 5;
-        } else if (op == hex"ff") {
-            len = bytes(script[0:9]).fromVarint();
-            ptr = 9;
-        } else {
-            len = uint8(bytes1(op));
-            ptr = 1;
-        }
+        (len, ptr) = script.fromVarint(ptr);
+        if (len == 0) revert InvalidScript();
+        // an opcode
+        bytes32 op;
         // we read the script byte by byte until we reach the end
         while (ptr <= len) {
             op = script[ptr];
