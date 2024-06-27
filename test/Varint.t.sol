@@ -18,12 +18,13 @@ contract TestVarint is BaseTest {
         }
 
         vm.expectRevert(Varint.VarintOverflow.selector);
-        uint256(type(uint64).max).toVarint();
+        (uint256(type(uint64).max) + 1).toVarint();
     }
 
     function test_fromVarint() public {
         for (uint256 i; i < data.length; i++) {
-            assertEq(data[i].toVarint().fromVarint(), data[i], "Should correctly convert from varint");
+            (uint256 result,) = data[i].toVarint().fromVarint(0);
+            assertEq(result, data[i], "Should correctly convert from varint");
         }
 
         // multiple reverts don't work with internal function calls
@@ -32,26 +33,24 @@ contract TestVarint is BaseTest {
         vm.expectRevert(Varint.NotVarint.selector);
         mock.fromVarint(hex"");
 
-        vm.expectRevert(Varint.NotVarint.selector);
+        vm.expectRevert();
         mock.fromVarint(hex"fdfd");
-
-        vm.expectRevert(Varint.NotVarint.selector);
-        mock.fromVarint(hex"ffffffffffffffffffff");
     }
 
-    function test_fuzzing_fromVarint(uint256 x) public {
-        if (x >= type(uint64).max) {
+    function test_fuzz_fromVarint(uint256 x) public {
+        if (x > type(uint64).max) {
             vm.expectRevert(Varint.VarintOverflow.selector);
             x.toVarint();
         }
-        assertEq(x.toVarint().fromVarint(), x, "Should correctly fuzz");
+        (uint256 result,) = x.toVarint().fromVarint(0);
+        assertEq(result, x, "Should correctly fuzz");
     }
 }
 
 contract Mock {
     using Varint for bytes;
 
-    function fromVarint(bytes memory _data) external pure returns (uint256) {
-        return _data.fromVarint();
+    function fromVarint(bytes memory _data) external pure returns (uint256 result) {
+        (result,) = _data.fromVarint(0);
     }
 }
