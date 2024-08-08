@@ -124,9 +124,9 @@ library Base58 {
         index -= value;
         resLen -= index;
         assembly {
+            mstore(res, resLen)
             let start := add(res, 0x20)
             mcopy(start, add(start, index), resLen)
-            mstore(res, resLen)
         }
     }
 
