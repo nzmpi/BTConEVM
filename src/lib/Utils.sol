@@ -43,6 +43,15 @@ library Utils {
     }
 
     /**
+     * Converts the endianness of the bytes32 data
+     * @param _data - The data to convert
+     * @return res - Converted data
+     */
+    function convertEndian(bytes32 _data) internal pure returns (bytes32 res) {
+        return bytes32(convertEndian(bytes.concat(_data)));
+    }
+
+    /**
      * Converts bytes to uint256
      * @dev Reverts if length is greater than 32
      * @param _data - The data to be converted
