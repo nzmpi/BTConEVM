@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /**
- * @notice Represents a point on the elliptic curve secp256k1
+ * @notice Represents a point P(x, y) on the elliptic curve secp256k1
  */
 struct Point {
     uint256 x;
@@ -21,8 +21,8 @@ struct Signature {
  * @notice Represents a transaction input
  */
 struct TxInput {
-    bytes32 txId;
-    bytes4 vout;
+    bytes32 txId; // hash of the referenced transaction
+    bytes4 vout; // index of the referenced output
     bytes4 sequence;
     bytes scriptSig;
 }
