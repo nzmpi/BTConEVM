@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./lib/Utils.sol";
 import {SerialLib} from "./lib/SerialLib.sol";
 import {SigLib} from "./lib/SigLib.sol";
-import {Utils} from "./lib/Utils.sol";
+import "./lib/Utils.sol";
 import {Varint} from "./lib/Varint.sol";
 
 /**
@@ -13,12 +12,12 @@ import {Varint} from "./lib/Varint.sol";
  * @author https://github.com/nzmpi
  */
 contract Script {
-    using Utils for bytes;
-    using Utils for uint256;
     using SerialLib for bytes;
     using SigLib for uint256;
+    using Utils for *;
     using Varint for bytes;
 
+    uint256 signatureHash;
     bytes[] stack;
     mapping(bytes32 opcode => function(bytes calldata, uint256) returns (uint256)) opcodes;
 
@@ -54,19 +53,21 @@ contract Script {
         opcodes[hex"a9"] = op_hash160;
         opcodes[hex"aa"] = op_hash256;
         opcodes[hex"ac"] = op_checksig;
+        opcodes[hex"ae"] = op_checkmultisig;
     }
 
     /**
      * Executes the script
      * @param script - ScriptSig + ScriptPubKey
      */
-    function execute(bytes calldata script) external {
+    function execute(bytes calldata script, bytes32 _signatureHash) external {
         uint256 len = script.length;
         if (len == 0) revert InvalidScript();
         // the pointer
         uint256 ptr;
         (len, ptr) = script.fromVarint(ptr);
         if (len == 0) revert InvalidScript();
+        signatureHash = uint256(_signatureHash);
         // an opcode
         bytes32 op;
         // we read the script byte by byte until we reach the end
@@ -74,6 +75,17 @@ contract Script {
             op = script[ptr];
             if (op > 0 && op < hex"4c") {
                 ptr = op_pushdata1(script, --ptr);
+            } else if (
+                // check if BIP0016
+                op == hex"a9" && script.length == ptr + 23 // 20 bytes of hash + 2 opcodes + 1 length
+                    && script[ptr + 1] == hex"14" // length of hash
+                    && script[ptr + 22] == hex"87"
+            ) {
+                bytes20 hash = stack[stack.length - 1].hash160();
+                if (hash != bytes20(script[ptr + 2:ptr + 22])) revert InvalidScript();
+                len = ptr - 1;
+                ptr -= stack[stack.length - 1].length;
+                stack.pop();
             } else {
                 ptr = opcodes[op](script, ptr);
             }
@@ -315,17 +327,70 @@ contract Script {
      */
     function op_checksig(bytes calldata, uint256 _ptr) internal checkStack2 returns (uint256) {
         uint256 len = stack.length - 1;
-        // TODO
-        uint256 messageHash = 42;
         bytes memory pubKey = stack[len];
         --len;
         bytes memory sig = stack[len];
         stack.pop();
-        if (messageHash.verify(sig.parseSignature(), pubKey.parsePublicKey())) {
+        if (signatureHash.verify(sig, pubKey)) {
             stack[len] = hex"01";
         } else {
             stack[len] = hex"";
         }
+        return ++_ptr;
+    }
+
+    /**
+     * Multisig verification
+     * @param _ptr - The pointer
+     * @return _ptr - The updated pointer
+     */
+    function op_checkmultisig(bytes calldata, uint256 _ptr) internal checkStack returns (uint256) {
+        // number of public keys
+        int256 temp = _getNumber();
+        // at least 1 public key
+        if (temp < 1) revert InvalidScript();
+        uint256 pubKeyLen = uint256(temp);
+        uint256 len = stack.length - 1;
+        // number of public keys + amount of signatures
+        if (pubKeyLen > len) revert InvalidScript();
+        bytes[] memory pubKeys = new bytes[](pubKeyLen);
+        for (uint256 i; i < pubKeyLen; ++i) {
+            pubKeys[i] = stack[len];
+            --len;
+            stack.pop();
+        }
+
+        // number of signatures
+        temp = _getNumber();
+        // at least 1 signature
+        if (temp < 1) revert InvalidScript();
+        uint256 sigLen = uint256(temp);
+        --len;
+        // number of signatures plus op_0
+        if (sigLen > len) revert InvalidScript();
+        bytes memory signature;
+        uint256 j;
+        for (uint256 i; i < sigLen; ++i) {
+            // ignore last 4 bytes
+            signature = stack[len].readFromMemory(0, stack[len].length - 4);
+            if (j == pubKeyLen) {
+                stack[len] = hex"";
+                return ++_ptr;
+            }
+            while (j < pubKeyLen) {
+                if (signatureHash.verify(signature, pubKeys[j])) {
+                    ++j;
+                    break;
+                }
+                ++j;
+            }
+            --len;
+            stack.pop();
+        }
+        // check for op_0
+        if (stack[len].length != 0) revert InvalidScript();
+
+        stack[len] = hex"01";
         return ++_ptr;
     }
 
