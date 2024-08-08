@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {ECBTC} from "./ECBTC.sol";
+import {SerialLib} from "./SerialLib.sol";
 import {Signature, Point} from "./Structs.sol";
 
 /**
@@ -10,8 +11,8 @@ import {Signature, Point} from "./Structs.sol";
  * @author https://github.com/nzmpi
  */
 library SigLib {
-    using ECBTC for uint256;
-    using ECBTC for Point;
+    using ECBTC for *;
+    using SerialLib for *;
 
     /**
      * @notice Signs a message hash with a private key
@@ -55,5 +56,9 @@ library SigLib {
         // res = u1 * G + u2 * _publicKey
         Point memory res = u1.mulG().add(u2.mul(_publicKey));
         return res.x == _sig.r;
+    }
+
+    function verify(uint256 _messageHash, bytes memory _sig, bytes memory _publicKey) internal pure returns (bool) {
+        return verify(_messageHash, _sig.parseSignature(), _publicKey.parsePublicKey());
     }
 }
