@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./Structs.sol";
-import {ECBTC} from "./ECBTC.sol";
 import {Base58} from "./Base58.sol";
+import {ECBTC} from "./ECBTC.sol";
+import "./Structs.sol";
 import {Utils} from "./Utils.sol";
 import {Varint} from "./Varint.sol";
 
@@ -13,31 +13,29 @@ import {Varint} from "./Varint.sol";
  * @author https://github.com/nzmpi
  */
 library SerialLib {
-    using ECBTC for uint256;
     using Base58 for bytes;
-    using Utils for bytes;
-    using Utils for uint256;
-    using Varint for uint256;
-    using Varint for bytes;
+    using ECBTC for uint256;
+    using Utils for *;
+    using Varint for *;
 
     error BadData();
 
     /**
-     * Serializes public key
+     * Serializes public key (SEC format)
      * @param _pubKey - The Public Key to be serialized
      * @param _isCompressed - If to return compressed public key or uncompressed
      * @return Serialized public key
      */
     function serializePublicKey(Point memory _pubKey, bool _isCompressed) internal pure returns (bytes memory) {
         if (_isCompressed) {
-            // compressed SEC format
+            // compressed
             if (_pubKey.y % 2 == 0) {
                 return bytes.concat(bytes1(0x02), bytes32(_pubKey.x));
             } else {
                 return bytes.concat(bytes1(0x03), bytes32(_pubKey.x));
             }
         } else {
-            // uncompressed SEC format
+            // uncompressed
             return bytes.concat(bytes1(0x04), bytes32(_pubKey.x), bytes32(_pubKey.y));
         }
     }
@@ -135,17 +133,20 @@ library SerialLib {
      * Serializes private key (WIF format)
      * @param _privKey - The private key to be serialized
      * @param _isCompressed - Indicates whether the public key was compressed to derive the address
+     * @param _isMainnet - Indicates whether the network is mainnet
      * @return res - The serialized private key
      */
-    function serializePrivateKey(uint256 _privKey, bool _isCompressed) internal pure returns (bytes memory res) {
+    function serializePrivateKey(uint256 _privKey, bool _isCompressed, bool _isMainnet)
+        internal
+        pure
+        returns (bytes memory res)
+    {
         if (_isCompressed) {
-            /// @dev for testnet change 0x80 -> 0xef
-            res = bytes.concat(bytes1(0x80), bytes32(_privKey), bytes1(0x01));
-            res = bytes.concat(res, bytes4(sha256(bytes.concat(sha256(res))))).encode();
+            res = bytes.concat(_isMainnet ? bytes1(0x80) : bytes1(0xef), bytes32(_privKey), bytes1(0x01));
+            res = bytes.concat(res, bytes4(res.hash256())).encode();
         } else {
-            /// @dev for testnet change 0x80 -> 0xef
-            res = bytes.concat(bytes1(0x80), bytes32(_privKey));
-            res = bytes.concat(res, bytes4(sha256(bytes.concat(sha256(res))))).encode();
+            res = bytes.concat(_isMainnet ? bytes1(0x80) : bytes1(0xef), bytes32(_privKey));
+            res = bytes.concat(res, bytes4(res.hash256())).encode();
         }
     }
 
@@ -164,6 +165,7 @@ library SerialLib {
                 res,
                 bytes.concat(_tx.inputs[i].txId).convertEndian(),
                 bytes.concat(_tx.inputs[i].vout).convertEndian(),
+                _tx.inputs[i].scriptSig.length.toVarint(),
                 _tx.inputs[i].scriptSig,
                 bytes.concat(_tx.inputs[i].sequence).convertEndian()
             );
@@ -173,7 +175,12 @@ library SerialLib {
         if (len == 0) revert BadData();
         res = bytes.concat(res, len.toVarint());
         for (uint256 i; i < len; ++i) {
-            res = bytes.concat(res, bytes.concat(_tx.outputs[i].amount).convertEndian(), _tx.outputs[i].scriptPubKey);
+            res = bytes.concat(
+                res,
+                bytes.concat(_tx.outputs[i].amount).convertEndian(),
+                _tx.outputs[i].scriptPubKey.length.toVarint(),
+                _tx.outputs[i].scriptPubKey
+            );
         }
 
         res = bytes.concat(res, bytes.concat(_tx.locktime).convertEndian());
@@ -191,14 +198,13 @@ library SerialLib {
 
         res.inputs = new TxInput[](len);
         uint256 lenScript;
-        uint256 ptrScript;
         for (uint256 i; i < len; ++i) {
-            res.inputs[i].txId = bytes32(_data.readFromMemory(ptr, 32).convertEndian());
+            res.inputs[i].txId = bytes32(_data.readFromMemory(ptr, 32)).convertEndian();
             res.inputs[i].vout = bytes4(_data.readFromMemory(ptr + 32, 4).convertEndian());
             ptr += 36;
-            (lenScript, ptrScript) = _data.fromVarint(ptr);
-            res.inputs[i].scriptSig = _data.readFromMemory(ptr, lenScript + ptrScript - ptr);
-            ptr = ptrScript + lenScript;
+            (lenScript, ptr) = _data.fromVarint(ptr);
+            res.inputs[i].scriptSig = _data.readFromMemory(ptr, lenScript);
+            ptr += lenScript;
             res.inputs[i].sequence = bytes4(_data.readFromMemory(ptr, 4).convertEndian());
             ptr += 4;
         }
@@ -208,9 +214,9 @@ library SerialLib {
         for (uint256 i; i < len; ++i) {
             res.outputs[i].amount = bytes8(_data.readFromMemory(ptr, 8).convertEndian());
             ptr += 8;
-            (lenScript, ptrScript) = _data.fromVarint(ptr);
-            res.outputs[i].scriptPubKey = _data.readFromMemory(ptr, lenScript + ptrScript - ptr);
-            ptr = ptrScript + lenScript;
+            (lenScript, ptr) = _data.fromVarint(ptr);
+            res.outputs[i].scriptPubKey = _data.readFromMemory(ptr, lenScript);
+            ptr += lenScript;
         }
 
         res.locktime = bytes4(_data.readFromMemory(ptr, 4).convertEndian());
