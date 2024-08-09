@@ -5,8 +5,7 @@ import "./utils/BaseTest.sol";
 import "../src/lib/Utils.sol";
 
 contract TestUtils is BaseTest {
-    using Utils for bytes;
-    using Utils for uint256;
+    using Utils for *;
 
     bytes[6] data = [
         bytes(""),
@@ -69,6 +68,17 @@ contract TestUtils is BaseTest {
             assertEq(data[i].convertEndian(), littleEndians[i], "Should correctly convert to little endian");
             assertEq(littleEndians[i].convertEndian(), data[i], "Should correctly convert to big endian");
         }
+
+        assertEq(
+            bytes32(data[4]).convertEndian(),
+            bytes32(littleEndians[4]),
+            "Should correctly convert bytes32 to little endian"
+        );
+        assertEq(
+            bytes32(littleEndians[4]).convertEndian(),
+            bytes32(data[4]),
+            "Should correctly convert bytes32 to big endian"
+        );
     }
 
     function test_bytesToUint256() public {
