@@ -58,7 +58,7 @@ contract TestBase58 is BaseTest {
         mock.decode(bytes("!"));
     }
 
-    function test_fuzzing_decode(bytes calldata _data) public {
+    function test_fuzz_decode(bytes calldata _data) public {
         if (_data.length == 0) {
             vm.expectRevert(Base58.WrongData.selector);
             _data.encode().decode();
