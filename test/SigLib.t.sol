@@ -2,10 +2,13 @@
 pragma solidity ^0.8.24;
 
 import "./utils/BaseTest.sol";
-import {SigLib, Signature} from "../src/lib/SigLib.sol";
+import {SerialLib} from "../src/lib/SerialLib.sol";
+import {SigLib} from "../src/lib/SigLib.sol";
+import {Signature} from "../src/lib/Structs.sol";
 
 contract TestSigLib is BaseTest {
     using ECBTC for uint256;
+    using SerialLib for *;
     using SigLib for uint256;
 
     function test_sign() public {
@@ -41,6 +44,15 @@ contract TestSigLib is BaseTest {
 
         Signature memory sig3 = messageHash.sign(anotherPrivateKey);
         assertTrue(messageHash.verify(sig3, anotherPubKey), "Third signature should be valid");
+
+        assertTrue(
+            messageHash.verify(sig1.serializeSignature(), pubKey.serializePublicKey(true)),
+            "Signature should be valid with compressed public key"
+        );
+        assertTrue(
+            messageHash.verify(sig1.serializeSignature(), pubKey.serializePublicKey(false)),
+            "Signature should be valid with uncompressed public key"
+        );
     }
 
     function test_invalid_verify() public view {
