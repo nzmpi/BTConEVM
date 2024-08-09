@@ -39,7 +39,7 @@ library Varint {
     /**
      * Converts varint to uint256 from a given data of variable length
      * @param _data - The data that contains the varint
-     * @param _offset - The offset in data where the varint starts
+     * @param _offset - The offset in data where the varint itself starts
      * @return num - The converted uint256
      * @return offset - The updated offset
      */
@@ -47,7 +47,7 @@ library Varint {
         if (_data.length == 0) revert NotVarint();
         num = uint8(_data[_offset]);
         offset = _offset + 1;
-        if (num < 253) {
+        if (num < 0xfd) {
             return (num, offset);
         } else if (num == 0xfd) {
             num = uint16(bytes2(_data.readFromMemory(offset, 2).convertEndian()));
