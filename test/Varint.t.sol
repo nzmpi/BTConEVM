@@ -5,15 +5,16 @@ import "./utils/BaseTest.sol";
 import {Varint} from "../src/lib/Varint.sol";
 
 contract TestVarint is BaseTest {
-    using Varint for uint256;
-    using Varint for bytes;
+    using Varint for *;
 
-    uint256[6] data = [0, 201, 253, 65500, 3500000000, 18446744073709551614];
+    error WrongRead();
+
+    uint256[6] data = [0, 201, 253, 65500, 3500000000, 18446744073709551615];
 
     function test_toVarint() public {
         bytes[6] memory expected =
-            [bytes(hex"00"), hex"c9", hex"fdfd00", hex"fddcff", hex"fe00c39dd0", hex"fffeffffffffffffff"];
-        for (uint256 i = 0; i < data.length; i++) {
+            [bytes(hex"00"), hex"c9", hex"fdfd00", hex"fddcff", hex"fe00c39dd0", hex"ffffffffffffffffff"];
+        for (uint256 i; i < data.length; i++) {
             assertEq(data[i].toVarint(), expected[i], "Should correctly convert to varint");
         }
 
@@ -33,7 +34,7 @@ contract TestVarint is BaseTest {
         vm.expectRevert(Varint.NotVarint.selector);
         mock.fromVarint(hex"");
 
-        vm.expectRevert();
+        vm.expectRevert(WrongRead.selector);
         mock.fromVarint(hex"fdfd");
     }
 
