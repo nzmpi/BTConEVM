@@ -15,7 +15,7 @@ library SigLib {
     using SerialLib for *;
 
     /**
-     * @notice Signs a message hash with a private key
+     * Signs a message hash with a private key
      * @param _messageHash - The message hash to sign
      * @param _privateKey - The private key of the signer
      * @return sig - The signature
@@ -36,7 +36,7 @@ library SigLib {
     }
 
     /**
-     * @notice Verifies a signature
+     * Verifies a signature
      * @param _messageHash - The message hash that was signed
      * @param _sig - The signature
      * @param _publicKey - The public key of the signer
@@ -58,6 +58,13 @@ library SigLib {
         return res.x == _sig.r;
     }
 
+    /**
+     * Verifies a signature
+     * @param _messageHash - The message hash that was signed
+     * @param _sig - The signature
+     * @param _publicKey - The public key of the signer
+     * @return true, if the signature is valid, false otherwise
+     */
     function verify(uint256 _messageHash, bytes memory _sig, bytes memory _publicKey) internal pure returns (bool) {
         return verify(_messageHash, _sig.parseSignature(), _publicKey.parsePublicKey());
     }
