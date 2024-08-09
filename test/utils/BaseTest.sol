@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
-import {ECBTC, Point} from "../../src/lib/ECBTC.sol";
+import {ECBTC} from "../../src/lib/ECBTC.sol";
+import {Point} from "../../src/lib/Structs.sol";
 
 contract BaseTest is Test {
     using ECBTC for uint256;
