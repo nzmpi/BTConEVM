@@ -4,6 +4,28 @@ pragma solidity ^0.8.24;
 import "./utils/BaseTest.sol";
 import "../src/lib/Utils.sol";
 
+contract MockUtils {
+    using Utils for *;
+
+    function bytesToUint256(bytes memory _data) external pure returns (uint256 res) {
+        return _data.bytesToUint256();
+    }
+
+    function readFromMemory(bytes memory _from, uint256 _offset, uint256 _length)
+        external
+        pure
+        returns (bytes memory res)
+    {
+        return _from.readFromMemory(_offset, _length);
+    }
+
+    function getLengthForScript(uint256 _length) external pure returns (bytes memory res) {
+        return _length.getLengthForScript();
+    }
+}
+
+// add new tests
+
 contract TestUtils is BaseTest {
     using Utils for *;
 
@@ -17,12 +39,18 @@ contract TestUtils is BaseTest {
     ];
     bytes[6] numbers = [
         bytes(hex"00"),
-        bytes(hex"24"),
-        bytes(hex"566ef2"),
-        bytes(hex"ffffffffffffad0f"),
-        bytes(hex"0279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76"),
-        bytes(hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+        hex"24",
+        hex"566ef2",
+        hex"ffffffffffffad0f",
+        hex"0279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76",
+        hex"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     ];
+
+    MockUtils mock;
+
+    function setUp() public {
+        mock = new MockUtils();
+    }
 
     function test_hash160() public view {
         bytes32[6] memory expected = [
@@ -95,7 +123,6 @@ contract TestUtils is BaseTest {
         }
 
         // multiple reverts don't work with internal function calls
-        Mock mock = new Mock();
         vm.expectRevert(Utils.WrongLength.selector);
         mock.bytesToUint256(bytes(hex""));
 
@@ -144,7 +171,6 @@ contract TestUtils is BaseTest {
         );
 
         // multiple reverts don't work with internal function calls
-        Mock mock = new Mock();
         vm.expectRevert(Utils.WrongRead.selector);
         mock.readFromMemory(data[0], 0, 1);
 
@@ -154,20 +180,64 @@ contract TestUtils is BaseTest {
         vm.expectRevert(Utils.WrongRead.selector);
         mock.readFromMemory(data[4], 35, 2);
     }
-}
 
-contract Mock {
-    using Utils for bytes;
+    function test_getLengthForScript() public {
+        uint256[10] memory inputs = [
+            0,
+            3,
+            0x4b,
+            0x4c,
+            255,
+            400,
+            520,
+            0xa4545fe33c,
+            0x0279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76,
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        ];
+        bytes[7] memory expected = [bytes(hex"00"), hex"03", hex"4b", hex"4c4c", hex"4cff", hex"4d0190", hex"4d0208"];
 
-    function bytesToUint256(bytes memory _data) external pure returns (uint256 res) {
-        return _data.bytesToUint256();
+        for (uint256 i; i < inputs.length; ++i) {
+            if (inputs[i] > 520) {
+                vm.expectRevert(Utils.WrongLength.selector);
+                mock.getLengthForScript(inputs[i]);
+            } else {
+                assertEq(inputs[i].getLengthForScript(), expected[i]);
+            }
+        }
     }
 
-    function readFromMemory(bytes memory _from, uint256 _offset, uint256 _length)
-        external
-        pure
-        returns (bytes memory res)
-    {
-        return _from.readFromMemory(_offset, _length);
+    function test_getNumberForScript() public pure {
+        uint256[12] memory inputs = [
+            0,
+            1,
+            3,
+            16,
+            17,
+            0x4c,
+            255,
+            400,
+            520,
+            0xa4545fe33c,
+            0x0279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76,
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        ];
+        bytes[12] memory expected = [
+            bytes(hex""),
+            hex"51",
+            hex"53",
+            hex"60",
+            hex"0111",
+            hex"014c",
+            hex"01ff",
+            hex"020190",
+            hex"020208",
+            hex"05a4545fe33c",
+            hex"200279f24140c456a5fb24ddea4e3382fa86aa7894b3e79539766ddc60a4647e76",
+            hex"20ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        ];
+
+        for (uint256 i; i < inputs.length; ++i) {
+            assertEq(inputs[i].getNumberForScript(), expected[i]);
+        }
     }
 }
