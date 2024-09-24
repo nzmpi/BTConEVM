@@ -7,6 +7,8 @@ pragma solidity ^0.8.24;
  * @author https://github.com/nzmpi
  */
 library Utils {
+    uint256 constant MAX_ALLOWED_LENGTH = 520;
+
     error WrongLength();
     error WrongRead();
 
@@ -110,6 +112,40 @@ library Utils {
         res = new bytes(_length);
         assembly {
             mcopy(add(res, 32), add(_from, add(_offset, 32)), _length)
+        }
+    }
+
+    /**
+     * Gets a length for Script in bytes
+     * @param _length - The length
+     * @return res - The length in bytes with an opcode if needed
+     */
+    function getLengthForScript(uint256 _length) internal pure returns (bytes memory res) {
+        if (_length < 0x4c) {
+            res = bytes.concat(bytes1(uint8(_length)));
+        } else if (_length <= type(uint8).max) {
+            res = bytes.concat(bytes1(0x4c), bytes1(uint8(_length)));
+        } else if (_length <= MAX_ALLOWED_LENGTH) {
+            res = bytes.concat(bytes1(0x4d), bytes2(uint16(_length)));
+        } else {
+            revert WrongLength();
+        }
+    }
+
+    /**
+     * Gets a number for Script in bytes
+     * @param _num - The number
+     * @return res - The number in bytes or in opcode
+     */
+    function getNumberForScript(uint256 _num) internal pure returns (bytes memory res) {
+        if (_num == 0) {
+            res = hex"";
+        } else if (_num < 17) {
+            // op_1 to op_16
+            res = bytes.concat(bytes1(uint8(_num + 0x50)));
+        } else {
+            bytes memory temp = uint256ToBytes(_num);
+            res = bytes.concat(bytes1(uint8(temp.length)), temp);
         }
     }
 }
