@@ -17,12 +17,21 @@ contract Script {
     using Utils for *;
     using Varint for bytes;
 
+    bytes32 constant KECCAK_01 = keccak256(hex"01");
     uint256 signatureHash;
     bytes[] stack;
     mapping(bytes32 opcode => function(bytes calldata, uint256) returns (uint256)) opcodes;
 
-    error StackIsEmpty();
+    error BadNumber();
     error InvalidScript();
+    error MaxLengthPushdata(uint256 length);
+    error OP_EqualVerifyFailed();
+    error OP_CheckMultisigFailed();
+    error OP_VerifyFailed();
+    error ScriptIsEmpty();
+    error ScriptFailed();
+    error StackIsEmpty();
+    error WrongRedeemScriptHash();
 
     modifier checkStack() {
         if (stack.length == 0) revert StackIsEmpty();
@@ -39,8 +48,6 @@ contract Script {
         opcodes[hex"4c"] = op_pushdata1;
         opcodes[hex"4d"] = op_pushdata2;
         opcodes[hex"4e"] = op_pushdata4;
-        opcodes[hex"51"] = op_1;
-        opcodes[hex"52"] = op_2;
         opcodes[hex"69"] = op_verify;
         opcodes[hex"75"] = op_drop;
         opcodes[hex"76"] = op_dup;
@@ -62,11 +69,11 @@ contract Script {
      */
     function execute(bytes calldata script, bytes32 _signatureHash) external {
         uint256 len = script.length;
-        if (len == 0) revert InvalidScript();
+        if (len == 0) revert ScriptIsEmpty();
         // the pointer
         uint256 ptr;
         (len, ptr) = script.fromVarint(ptr);
-        if (len == 0) revert InvalidScript();
+        if (len == 0) revert ScriptIsEmpty();
         signatureHash = uint256(_signatureHash);
         // an opcode
         bytes32 op;
@@ -75,14 +82,17 @@ contract Script {
             op = script[ptr];
             if (op > 0 && op < hex"4c") {
                 ptr = op_pushdata1(script, --ptr);
+            } else if (op > hex"50" && op < hex"61") {
+                ptr = op_n(op, script, ptr);
             } else if (
                 // check if BIP0016
                 op == hex"a9" && script.length == ptr + 23 // 20 bytes of hash + 2 opcodes + 1 length
                     && script[ptr + 1] == hex"14" // length of hash
                     && script[ptr + 22] == hex"87"
             ) {
-                bytes20 hash = stack[stack.length - 1].hash160();
-                if (hash != bytes20(script[ptr + 2:ptr + 22])) revert InvalidScript();
+                if (stack[stack.length - 1].hash160() != bytes20(script[ptr + 2:ptr + 22])) {
+                    revert WrongRedeemScriptHash();
+                }
                 len = ptr - 1;
                 ptr -= stack[stack.length - 1].length;
                 stack.pop();
@@ -91,7 +101,12 @@ contract Script {
             }
         }
 
-        if (stack.length == 0 || stack[stack.length - 1].length == 0) revert InvalidScript();
+        if (stack.length == 0 || stack[stack.length - 1].length == 0) revert ScriptFailed();
+
+        // clear the stack
+        assembly {
+            sstore(stack.slot, 0)
+        }
     }
 
     /**
@@ -130,7 +145,7 @@ contract Script {
         ++_ptr;
         uint256 len = uint16(bytes2(bytes(_data[_ptr:_ptr + 2]).convertEndian()));
         // max length is 520 bytes
-        if (len > 520) revert InvalidScript();
+        if (len > 520) revert MaxLengthPushdata(len);
         _ptr += 2;
         stack.push(_data[_ptr:_ptr + len]);
         return _ptr + len;
@@ -147,29 +162,20 @@ contract Script {
         ++_ptr;
         uint256 len = uint32(bytes4(bytes(_data[_ptr:_ptr + 4]).convertEndian()));
         // max length is 520 bytes
-        if (len > 520) revert InvalidScript();
+        if (len > 520) revert MaxLengthPushdata(len);
         _ptr += 4;
         stack.push(_data[_ptr:_ptr + len]);
         return _ptr + len;
     }
 
     /**
-     * Pushes 1 to the stack
+     * Pushes n to the stack, where 0 < n < 17
+     * @param _op - The opcode
      * @param _ptr - The pointer
      * @return _ptr - The updated pointer
      */
-    function op_1(bytes calldata, uint256 _ptr) internal returns (uint256) {
-        stack.push(hex"01");
-        return ++_ptr;
-    }
-
-    /**
-     * Pushes 2 to the stack
-     * @param _ptr - The pointer
-     * @return _ptr - The updated pointer
-     */
-    function op_2(bytes calldata, uint256 _ptr) internal returns (uint256) {
-        stack.push(hex"02");
+    function op_n(bytes32 _op, bytes calldata, uint256 _ptr) internal returns (uint256) {
+        stack.push((uint256(_op >> 248) - 0x50).uint256ToBytes());
         return ++_ptr;
     }
 
@@ -179,7 +185,7 @@ contract Script {
      * @return _ptr - The updated pointer
      */
     function op_verify(bytes calldata, uint256 _ptr) internal checkStack returns (uint256) {
-        if (keccak256(stack[stack.length - 1]) != keccak256(hex"01")) revert InvalidScript();
+        if (keccak256(stack[stack.length - 1]) != KECCAK_01) revert OP_VerifyFailed();
         stack.pop();
         return ++_ptr;
     }
@@ -246,7 +252,7 @@ contract Script {
             stack.pop();
             stack.pop();
         } else {
-            revert InvalidScript();
+            revert OP_EqualVerifyFailed();
         }
         return ++_ptr;
     }
@@ -258,7 +264,7 @@ contract Script {
      */
     function op_not(bytes calldata, uint256 _ptr) internal checkStack returns (uint256) {
         uint256 len = stack.length;
-        stack[len - 1] = keccak256(stack[len - 1]) == keccak256(hex"") ? bytes(hex"01") : bytes(hex"");
+        stack[len - 1] = stack[len - 1].length == 0 ? bytes(hex"01") : bytes(hex"");
         return ++_ptr;
     }
 
@@ -348,49 +354,55 @@ contract Script {
         // number of public keys
         int256 temp = _getNumber();
         // at least 1 public key
-        if (temp < 1) revert InvalidScript();
+        if (temp < 1) revert OP_CheckMultisigFailed();
         uint256 pubKeyLen = uint256(temp);
-        uint256 len = stack.length - 1;
-        // number of public keys + amount of signatures
-        if (pubKeyLen > len) revert InvalidScript();
+        // minus op_0
+        uint256 index = stack.length - 1;
+        // stack at least should have pubKeyLen amount of items
+        if (pubKeyLen > index) revert OP_CheckMultisigFailed();
         bytes[] memory pubKeys = new bytes[](pubKeyLen);
         for (uint256 i; i < pubKeyLen; ++i) {
-            pubKeys[i] = stack[len];
-            --len;
+            pubKeys[i] = stack[index];
+            --index;
             stack.pop();
         }
 
         // number of signatures
         temp = _getNumber();
         // at least 1 signature
-        if (temp < 1) revert InvalidScript();
+        if (temp < 1) revert OP_CheckMultisigFailed();
         uint256 sigLen = uint256(temp);
-        --len;
+        --index;
         // number of signatures plus op_0
-        if (sigLen > len) revert InvalidScript();
+        if (sigLen > index) revert OP_CheckMultisigFailed();
         bytes memory signature;
         uint256 j;
+        uint256 verifiedSignatures;
         for (uint256 i; i < sigLen; ++i) {
-            // ignore last 4 bytes
-            signature = stack[len].readFromMemory(0, stack[len].length - 4);
-            if (j == pubKeyLen) {
-                stack[len] = hex"";
-                return ++_ptr;
-            }
+            // ignore the last 1 byte
+            signature = stack[index].readFromMemory(0, stack[index].length - 1);
             while (j < pubKeyLen) {
                 if (signatureHash.verify(signature, pubKeys[j])) {
+                    ++verifiedSignatures;
                     ++j;
                     break;
                 }
                 ++j;
             }
-            --len;
+
+            // failed to verify all signatures
+            if (j == pubKeyLen && verifiedSignatures < sigLen) {
+                stack[index] = hex"";
+                return ++_ptr;
+            }
+            --index;
             stack.pop();
         }
-        // check for op_0
-        if (stack[len].length != 0) revert InvalidScript();
 
-        stack[len] = hex"01";
+        // check for op_0
+        if (stack[index].length != 0) revert OP_CheckMultisigFailed();
+
+        stack[index] = hex"01";
         return ++_ptr;
     }
 
@@ -414,7 +426,7 @@ contract Script {
         }
 
         int256 res = isNegative ? -int256(num.bytesToUint256()) : int256(num.bytesToUint256());
-        if (res > type(int32).max || res < type(int32).min) revert InvalidScript();
+        if (res > type(int32).max || res < type(int32).min) revert BadNumber();
         return int32(res);
     }
 
