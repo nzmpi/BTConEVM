@@ -10,8 +10,10 @@ contract BaseTest is Test {
 
     uint256 constant privateKey = uint256(keccak256("Some private key"));
     uint256 constant anotherPrivateKey = uint256(keccak256("Another private key"));
+    uint256 constant thirdPrivateKey = uint256(keccak256("Third private key"));
     uint256 constant messageHash = uint256(keccak256("Some message to sign"));
     uint256 constant anotherMessageHash = uint256(keccak256("Another message to sign"));
     Point pubKey = privateKey.mulG();
     Point anotherPubKey = anotherPrivateKey.mulG();
+    Point thirdPubKey = thirdPrivateKey.mulG();
 }
