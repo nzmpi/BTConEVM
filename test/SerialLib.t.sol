@@ -6,12 +6,16 @@ import {SerialLib} from "../src/lib/SerialLib.sol";
 import {SigLib} from "../src/lib/SigLib.sol";
 import "../src/lib/Structs.sol";
 
-contract TestSerialLib is BaseTest {
-    using SerialLib for Point;
-    using SerialLib for Signature;
-    using SerialLib for Transaction;
+contract MockSerialLib {
     using SerialLib for bytes;
-    using SerialLib for uint256;
+
+    function parsePublicKey(bytes memory _data) external pure returns (Point memory) {
+        return _data.parsePublicKey();
+    }
+}
+
+contract TestSerialLib is BaseTest {
+    using SerialLib for *;
     using SigLib for uint256;
     using ECBTC for uint256;
 
@@ -63,7 +67,7 @@ contract TestSerialLib is BaseTest {
         assertEq(result.y, pubKey.y, "Wrong compressed public key y-coordinate");
 
         // multiple reverts don't work with internal function calls
-        Mock mock = new Mock();
+        MockSerialLib mock = new MockSerialLib();
 
         PKSerlial = hex"04fff3423acb";
         vm.expectRevert(SerialLib.BadData.selector);
@@ -227,12 +231,91 @@ contract TestSerialLib is BaseTest {
         );
         assertEq(resTx.locktime, hex"00000000", "Wrong locktime 2");
     }
-}
 
-contract Mock {
-    using SerialLib for bytes;
+    function test_serializeBlock() public pure {
+        Block[3] memory blocks = [
+            Block({
+                version: 0x20000000,
+                prevBlock: 0x00000000000000000004b8b7b468f2950450637f44c5e90e7cc6dbae5a1f8f59,
+                merkleRoot: 0xc7553a4feda474950f2dd5fb67afb66ba269a529013c074e6bc89dc741023113,
+                timestamp: 0x63b8bace,
+                bits: 0x1708417e,
+                nonce: 0x070e3d8b
+            }),
+            Block({
+                version: 0x00000002,
+                prevBlock: 0x00000000000000002385fc3323ef9106b1f92f25d769da47a2fe471c12b0ee86,
+                merkleRoot: 0x3a91c2c3df6d70ebdab8205122526de240ed68dad0a96f1dea575b09c1614176,
+                timestamp: 0x5324d347,
+                bits: 0x190102b1,
+                nonce: 0xce0c08a1
+            }),
+            Block({
+                version: 0x2c000000,
+                prevBlock: 0x00000000000000000001fead2d97e0a1e5ff4f91487bd1584084775b5d4fde1f,
+                merkleRoot: 0x5ba72207b02104621b17c346716e71475371012b52ca895f21628b13729d4c9f,
+                timestamp: 0x66f6b61d,
+                bits: 0x17032f14,
+                nonce: 0x1e7d3a1c
+            })
+        ];
+        bytes[3] memory expected = [
+            bytes(
+                hex"00000020598f1f5aaedbc67c0ee9c5447f63500495f268b4b7b80400000000000000000013310241c79dc86b4e073c0129a569a26bb6af67fbd52d0f9574a4ed4f3a55c7cebab8637e4108178b3d0e07"
+            ),
+            hex"0200000086eeb0121c47fea247da69d7252ff9b10691ef2333fc85230000000000000000764161c1095b57ea1d6fa9d0da68ed40e26d52225120b8daeb706ddfc3c2913a47d32453b1020119a1080cce",
+            hex"0000002c1fde4f5d5b77844058d17b48914fffe5a1e0972dadfe010000000000000000009f4c9d72138b62215f89ca522b01715347716e7146c3171b620421b00722a75b1db6f666142f03171c3a7d1e"
+        ];
 
-    function parsePublicKey(bytes memory _data) external pure returns (Point memory) {
-        return _data.parsePublicKey();
+        for (uint256 i; i < blocks.length; ++i) {
+            assertEq(blocks[i].serializeBlock(), expected[i], "Wrong serialized block");
+        }
+    }
+
+    function test_parseBlock() public pure {
+        bytes[3] memory blocks = [
+            bytes(
+                hex"00000120fcac6c69e636b9c5673eb2a0f1522626b5906dab1440050000000000000000005c0af9d91c349e5b398745a98c8c1c084f154ac3618b8438227036ee6d388b46cdc5ed63393007177b233b43"
+            ),
+            hex"03000000fab50fe13f00760d63b3de62ae06567f24ef3f10cf82af01000000000000000097bdcd8436b081bf64453132d536da7a1f57eac39607c16eae7e3033e4373a7a87cf4855dd131718814bd656",
+            hex"0100000079c710b2420be69435963a6e264306b351d7759d4e4ea212dd4be6000000000019a84e4507d3f7c2dc58051c62baf4cad5a020858efe42855811abc35c3d03be09dc484cfd68011c173b6c17"
+        ];
+        Block[3] memory expected = [
+            Block({
+                version: 0x20010000,
+                prevBlock: 0x000000000000000000054014ab6d90b5262652f1a0b23e67c5b936e6696cacfc,
+                merkleRoot: 0x468b386dee36702238848b61c34a154f081c8c8ca94587395b9e341cd9f90a5c,
+                timestamp: 0x63edc5cd,
+                bits: 0x17073039,
+                nonce: 0x433b237b
+            }),
+            Block({
+                version: 0x00000003,
+                prevBlock: 0x000000000000000001af82cf103fef247f5606ae62deb3630d76003fe10fb5fa,
+                merkleRoot: 0x7a3a37e433307eae6ec10796c3ea571f7ada36d532314564bf81b03684cdbd97,
+                timestamp: 0x5548cf87,
+                bits: 0x181713dd,
+                nonce: 0x56d64b81
+            }),
+            Block({
+                version: 0x00000001,
+                prevBlock: 0x0000000000e64bdd12a24e4e9d75d751b30643266e3a963594e60b42b210c779,
+                merkleRoot: 0xbe033d5cc3ab11588542fe8e8520a0d5caf4ba621c0558dcc2f7d307454ea819,
+                timestamp: 0x4c48dc09,
+                bits: 0x1c0168fd,
+                nonce: 0x176c3b17
+            })
+        ];
+
+        Block memory res;
+        for (uint256 i; i < blocks.length; ++i) {
+            res = blocks[i].parseBlock();
+            assertEq(res.version, expected[i].version, "Wrong version");
+            assertEq(res.prevBlock, expected[i].prevBlock, "Wrong prevBlock");
+            assertEq(res.merkleRoot, expected[i].merkleRoot, "Wrong merkleRoot");
+            assertEq(res.timestamp, expected[i].timestamp, "Wrong timestamp");
+            assertEq(res.bits, expected[i].bits, "Wrong bits");
+            assertEq(res.nonce, expected[i].nonce, "Wrong nonce");
+        }
     }
 }
