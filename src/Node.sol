@@ -8,9 +8,15 @@ import {ScriptType} from "./lib/Types.sol";
 import "./lib/Utils.sol";
 import {Varint} from "./lib/Varint.sol";
 
+/**
+ * @title Node
+ * @notice Emulates the Bitcoin node
+ * @dev Only supports P2PKH and P2SH scripts
+ * @author https://github.com/nzmpi
+ */
 contract Node {
     using SerialLib for Transaction;
-    using Utils for bytes;
+    using Utils for *;
     using Varint for uint256;
 
     bytes4 constant SIGHASH_ALL = hex"01000000";
@@ -28,6 +34,12 @@ contract Node {
         script = _script;
     }
 
+    /**
+     * Validates the transaction
+     * @param transaction - Transaction to validate
+     * @param data - Additional data, e.g. redeemScript
+     * @dev data.length should be equal to transaction.inputs.length, even if empty
+     */
     function validate(Transaction calldata transaction, bytes[] calldata data) external {
         uint256 len = transaction.inputs.length;
         if (len == 0 || len != data.length) revert InvalidTxInputs();
@@ -47,14 +59,31 @@ contract Node {
         for (uint256 i; i < len; ++i) {
             outputSum += uint64(transaction.outputs[i].amount);
         }
-
         if (outputSum > inputSum) revert InvalidFee();
+
+        txId = transaction.serializeTransaction().hash256().convertEndian();
+        transactions[txId] = transaction;
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            UTXOs[txId][bytes4(uint32(i))] = true;
+        }
     }
 
+    /**
+     * Gets the transaction by its id
+     * @param _txId - Hash of the transaction
+     */
     function getTransaction(bytes32 _txId) external view returns (Transaction memory) {
         return transactions[_txId];
     }
 
+    /**
+     * Verifies the signature
+     * @param _transaction - Transaction
+     * @param _len - Transaction length
+     * @param _data - Additional data
+     * @dev Reverts if script type is not supported or
+     * script fails, if successful does nothing
+     */
     function _verifySignature(Transaction calldata _transaction, uint256 _len, bytes[] calldata _data) internal {
         Transaction memory tempTx = _transaction;
         for (uint256 i; i < _len; ++i) {
@@ -94,6 +123,12 @@ contract Node {
         }
     }
 
+    /**
+     * Gets the script type
+     * @param _scriptPubKey - ScriptPubKey
+     * @return ScriptType - Script type
+     * @dev Reverts if the script type is not supported
+     */
     function _getScriptType(bytes memory _scriptPubKey) internal pure returns (ScriptType) {
         if (
             _scriptPubKey.length == 25 && _scriptPubKey[0] == 0x76 && _scriptPubKey[1] == 0xa9
