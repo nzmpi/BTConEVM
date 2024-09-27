@@ -48,6 +48,11 @@ contract TestNode is BaseTest {
         _addPrevTx(inputs[0].txId, inputs[0].vout, 30000, hex"76a9144904d699fbdb22b2b8e240aa31153c26fbe606a088ac");
 
         mock.validate(transaction, new bytes[](1));
+        bytes32 txId = hex"44f76b52d6b5c9d2e3ebd0a9edb4fa551743cd97d8e8f23171247e64cae12f5b";
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
 
         // https://btcscan.org/tx/a6a0c1bd11c35039b74b1d50e498a1c4f02bd4e8480da35ccf9d0bac2ef7547c
         inputs = new TxInput[](5);
@@ -86,6 +91,11 @@ contract TestNode is BaseTest {
         _addPrevTx(inputs[4].txId, inputs[4].vout, 19867218, hex"76a914d4944c48a58a161b898bea6144721e77858a1e3288ac");
 
         mock.validate(transaction, new bytes[](5));
+        txId = hex"a6a0c1bd11c35039b74b1d50e498a1c4f02bd4e8480da35ccf9d0bac2ef7547c";
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
     }
 
     function test_validate_P2SH() public {
@@ -110,6 +120,12 @@ contract TestNode is BaseTest {
         redeemScript[0] =
             hex"52210330cd0f60c8093b34fcb69d6159be3a942f33560d138d68d277694b0b960f18c52102e3713ed176faff1478aee9ef28147a4b4d99b6ab01612514de9786b388e2d191210314d42df81081b7a871ad950bd0b715cf9ab0f4da576692f18c46701db266636f53ae";
         mock.validate(transaction, redeemScript);
+        bytes32 txId = hex"c7903b511d301cebae89c8e1eb9a521f742607015044430d5eef2656e88410f2";
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
 
         // https://btcscan.org/tx/9d3c6335e0dd47c3fff78649b474936fa001046b61aab8fcfd002750403dc4e3
         inputs = new TxInput[](3);
@@ -147,6 +163,11 @@ contract TestNode is BaseTest {
         redeemScript[2] =
             hex"5221035edb569f25e3b0d215e0b803828c4b503f7a5ca1fec5b46513f07da3d4ce295321024c7c6f60a83750ad68c08ac812b77dbbf0c295772e0c9ea9b38639874bb4323552ae";
         mock.validate(transaction, redeemScript);
+        txId = hex"9d3c6335e0dd47c3fff78649b474936fa001046b61aab8fcfd002750403dc4e3";
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
     }
 
     function test_validate_mixed() public {
@@ -182,6 +203,11 @@ contract TestNode is BaseTest {
             hex"522102907a54bed8ad74b3f35638c60114ca240a308cb986f3f2f306178869a8880b612103bc94de59cdfdf34c1b1977570ec1d6cd73532323d6d7cf9ae1418d5c0144ee6652ae";
         redeemScript[1] = hex"";
         mock.validate(transaction, redeemScript);
+        bytes32 txId = hex"f228eda842bd635511ae6f4b4b24cc74cc03d385231d10d1d69b15db1442e6db";
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
     }
 
     function test_invalid_validate() public {
