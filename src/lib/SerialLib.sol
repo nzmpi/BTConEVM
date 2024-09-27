@@ -223,6 +223,36 @@ library SerialLib {
     }
 
     /**
+     * Serializes block
+     * @param _block - The block to be serialized
+     * @return res - The serialized block
+     */
+    function serializeBlock(Block memory _block) internal pure returns (bytes memory res) {
+        res = bytes.concat(
+            bytes.concat(_block.version).convertEndian(),
+            _block.prevBlock.convertEndian(),
+            _block.merkleRoot.convertEndian(),
+            bytes.concat(_block.timestamp).convertEndian(),
+            bytes.concat(_block.bits).convertEndian(),
+            bytes.concat(_block.nonce).convertEndian()
+        );
+    }
+
+    /**
+     * Parses block
+     * @param _data - The data to be parsed
+     * @return res - The parsed block
+     */
+    function parseBlock(bytes memory _data) internal pure returns (Block memory res) {
+        res.version = bytes4(_data.readFromMemory(0, 4).convertEndian());
+        res.prevBlock = bytes32(_data.readFromMemory(4, 32).convertEndian());
+        res.merkleRoot = bytes32(_data.readFromMemory(36, 32).convertEndian());
+        res.timestamp = bytes4(_data.readFromMemory(68, 4).convertEndian());
+        res.bits = bytes4(_data.readFromMemory(72, 4).convertEndian());
+        res.nonce = bytes4(_data.readFromMemory(76, 4).convertEndian());
+    }
+
+    /**
      * Checks if the first byte is greater than 0x80
      * If it is, prepends 0x00
      * @param x - s or r from signature

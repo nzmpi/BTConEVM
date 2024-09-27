@@ -2,6 +2,18 @@
 pragma solidity ^0.8.24;
 
 /**
+ * @notice Represents a block
+ */
+struct Block {
+    bytes4 version;
+    bytes32 prevBlock;
+    bytes32 merkleRoot;
+    bytes4 timestamp;
+    bytes4 bits;
+    bytes4 nonce;
+}
+
+/**
  * @notice Represents a point P(x, y) on the elliptic curve secp256k1
  */
 struct Point {
