@@ -6,5 +6,7 @@ pragma solidity ^0.8.24;
  */
 enum ScriptType {
     P2PKH, // Pay-to-public-key-hash
-    P2SH // Pay-to-script-hash
+    P2SH, // Pay-to-script-hash
+    P2WPKH, // Pay-to-witness-public-key-hash
+    P2WSH // Pay-to-witness-script-hash
 }

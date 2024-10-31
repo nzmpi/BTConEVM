@@ -15,7 +15,7 @@ contract Script {
     using SerialLib for bytes;
     using SigLib for uint256;
     using Utils for *;
-    using Varint for bytes;
+    using Varint for *;
 
     bytes32 constant KECCAK_01 = keccak256(hex"01");
     uint256 signatureHash;
@@ -32,6 +32,7 @@ contract Script {
     error ScriptFailed();
     error StackIsEmpty();
     error WrongRedeemScriptHash();
+    error WrongWitnessScriptHash();
 
     modifier checkStack() {
         if (stack.length == 0) revert StackIsEmpty();
@@ -66,8 +67,10 @@ contract Script {
     /**
      * Executes the script
      * @param script - ScriptSig + ScriptPubKey
+     * @param _signatureHash - Signature hash
+     * @param witness - Witness
      */
-    function execute(bytes calldata script, bytes32 _signatureHash) external {
+    function execute(bytes calldata script, bytes32 _signatureHash, bytes[] calldata witness) external {
         uint256 len = script.length;
         if (len == 0) revert ScriptIsEmpty();
         // the pointer
@@ -96,11 +99,34 @@ contract Script {
                 len = ptr - 1;
                 ptr -= stack[stack.length - 1].length;
                 stack.pop();
+            } else if (
+                // check if P2WPKH
+                op == hex"00" && len == ptr + 21 && script[ptr + 1] == hex"14"
+            ) {
+                stack.push(witness[0]); // signature
+                stack.push(witness[1]); // public key
+                op_dup(script, ptr);
+                op_hash160(script, ptr);
+                stack.push(script[ptr + 2:ptr + 22]);
+                op_equalverify(script, ptr);
+                op_checksig(script, ptr);
+                break;
+            } else if (
+                // check if P2WSH
+                op == hex"00" && len == ptr + 33 && script[ptr + 1] == hex"20"
+            ) {
+                uint256 m = witness.length - 1;
+                if (sha256(witness[m]) != bytes32(script[ptr + 2:ptr + 34])) revert WrongWitnessScriptHash();
+                for (uint256 i; i < m; ++i) {
+                    stack.push(witness[i]); // signatures
+                }
+                this.execute(bytes.concat(witness[m].length.toVarint(), witness[m]), _signatureHash, witness);
+                // we don't break here, because we don't want to continue the script
+                return;
             } else {
                 ptr = opcodes[op](script, ptr);
             }
         }
-
         if (stack.length == 0 || stack[stack.length - 1].length == 0) revert ScriptFailed();
 
         // clear the stack
@@ -115,7 +141,7 @@ contract Script {
      * @return _ptr - The updated pointer
      */
     function op_0(bytes calldata, uint256 _ptr) internal returns (uint256) {
-        stack.push(hex"");
+        stack.push("");
         return ++_ptr;
     }
 
@@ -235,7 +261,7 @@ contract Script {
             stack[len - 2] = hex"01";
         } else {
             stack.pop();
-            stack[len - 2] = hex"";
+            stack[len - 2] = "";
         }
         return ++_ptr;
     }
@@ -264,7 +290,7 @@ contract Script {
      */
     function op_not(bytes calldata, uint256 _ptr) internal checkStack returns (uint256) {
         uint256 len = stack.length;
-        stack[len - 1] = stack[len - 1].length == 0 ? bytes(hex"01") : bytes(hex"");
+        stack[len - 1] = stack[len - 1].length == 0 ? bytes(hex"01") : bytes("");
         return ++_ptr;
     }
 
@@ -334,13 +360,12 @@ contract Script {
     function op_checksig(bytes calldata, uint256 _ptr) internal checkStack2 returns (uint256) {
         uint256 len = stack.length - 1;
         bytes memory pubKey = stack[len];
-        --len;
-        bytes memory sig = stack[len];
+        bytes memory sig = stack[--len];
         stack.pop();
         if (signatureHash.verify(sig, pubKey)) {
             stack[len] = hex"01";
         } else {
-            stack[len] = hex"";
+            stack[len] = "";
         }
         return ++_ptr;
     }
@@ -392,13 +417,12 @@ contract Script {
 
             // failed to verify all signatures
             if (j == pubKeyLen && verifiedSignatures < sigLen) {
-                stack[index] = hex"";
+                stack[index] = "";
                 return ++_ptr;
             }
             --index;
             stack.pop();
         }
-
         // check for op_0
         if (stack[index].length != 0) revert OP_CheckMultisigFailed();
 
@@ -437,7 +461,7 @@ contract Script {
      */
     function _pushNumber(int32 _num) private {
         if (_num == 0) {
-            stack.push(hex"");
+            stack.push("");
             return;
         }
 

@@ -156,7 +156,17 @@ library SerialLib {
      * @return res - The serialized transaction
      */
     function serializeTransaction(Transaction memory _tx) internal pure returns (bytes memory res) {
+        res = _tx.isSegwit ? serializeTransactionSegwit(_tx) : serializeTransactionLegacy(_tx);
+    }
+
+    /**
+     * Serializes legacy transaction
+     * @param _tx - The transaction to be serialized
+     * @return res - The serialized transaction
+     */
+    function serializeTransactionLegacy(Transaction memory _tx) internal pure returns (bytes memory res) {
         res = bytes.concat(_tx.version).convertEndian();
+
         uint256 len = _tx.inputs.length;
         if (len == 0) revert BadData();
         res = bytes.concat(res, len.toVarint());
@@ -187,13 +197,69 @@ library SerialLib {
     }
 
     /**
+     * Serializes segwit transaction
+     * @param _tx - The transaction to be serialized
+     * @return res - The serialized transaction
+     */
+    function serializeTransactionSegwit(Transaction memory _tx) internal pure returns (bytes memory res) {
+        res = bytes.concat(_tx.version).convertEndian();
+        res = bytes.concat(res, bytes2(0x0001));
+
+        uint256 len = _tx.inputs.length;
+        if (len == 0) revert BadData();
+        res = bytes.concat(res, len.toVarint());
+        for (uint256 i; i < len; ++i) {
+            res = bytes.concat(
+                res,
+                bytes.concat(_tx.inputs[i].txId).convertEndian(),
+                bytes.concat(_tx.inputs[i].vout).convertEndian(),
+                _tx.inputs[i].scriptSig.length.toVarint(),
+                _tx.inputs[i].scriptSig,
+                bytes.concat(_tx.inputs[i].sequence).convertEndian()
+            );
+        }
+
+        len = _tx.outputs.length;
+        if (len == 0) revert BadData();
+        res = bytes.concat(res, len.toVarint());
+        for (uint256 i; i < len; ++i) {
+            res = bytes.concat(
+                res,
+                bytes.concat(_tx.outputs[i].amount).convertEndian(),
+                _tx.outputs[i].scriptPubKey.length.toVarint(),
+                _tx.outputs[i].scriptPubKey
+            );
+        }
+
+        len = _tx.witness.length;
+        uint256 lenWitness;
+        for (uint256 i; i < len; ++i) {
+            lenWitness = _tx.witness[i].length;
+            res = bytes.concat(res, bytes1(uint8(lenWitness)));
+            for (uint256 j; j < lenWitness; ++j) {
+                res = bytes.concat(res, _tx.witness[i][j].length.toVarint(), _tx.witness[i][j]);
+            }
+        }
+
+        res = bytes.concat(res, bytes.concat(_tx.locktime).convertEndian());
+    }
+
+    /**
      * Parses transaction
      * @param _data - The data to be parsed
      * @return res - The parsed transaction
      */
     function parseTransaction(bytes memory _data) internal pure returns (Transaction memory res) {
         res.version = bytes4(_data.readFromMemory(0, 4).convertEndian());
-        (uint256 len, uint256 ptr) = _data.fromVarint(4);
+        uint256 len;
+        uint256 ptr = 4;
+        // segwit marker and flag
+        if (bytes2(_data.readFromMemory(ptr, 2)) == bytes2(0x0001)) {
+            res.isSegwit = true;
+            ptr += 2;
+        }
+
+        (len, ptr) = _data.fromVarint(ptr);
         if (len == 0) revert BadData();
 
         res.inputs = new TxInput[](len);
@@ -217,6 +283,22 @@ library SerialLib {
             (lenScript, ptr) = _data.fromVarint(ptr);
             res.outputs[i].scriptPubKey = _data.readFromMemory(ptr, lenScript);
             ptr += lenScript;
+        }
+
+        if (res.isSegwit) {
+            len = res.inputs.length;
+            res.witness = new bytes[][](len);
+            for (uint256 i; i < len; ++i) {
+                uint256 lenWitness = uint8(bytes1(_data.readFromMemory(ptr, 1)));
+                ++ptr;
+                bytes[] memory witness = new bytes[](lenWitness);
+                for (uint256 j; j < lenWitness; ++j) {
+                    (lenScript, ptr) = _data.fromVarint(ptr);
+                    witness[j] = _data.readFromMemory(ptr, lenScript);
+                    ptr += lenScript;
+                }
+                res.witness[i] = witness;
+            }
         }
 
         res.locktime = bytes4(_data.readFromMemory(ptr, 4).convertEndian());

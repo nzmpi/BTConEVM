@@ -11,7 +11,7 @@ import {Varint} from "./lib/Varint.sol";
 /**
  * @title Node
  * @notice Emulates the Bitcoin node
- * @dev Only supports P2PKH and P2SH scripts
+ * @dev Supports P2PKH, P2SH, P2WPKH and P2WSH scripts
  * @author https://github.com/nzmpi
  */
 contract Node {
@@ -21,6 +21,7 @@ contract Node {
 
     bytes4 constant SIGHASH_ALL = hex"01000000";
     Script immutable script;
+    uint256 public collectedFees;
     mapping(bytes32 txId => mapping(bytes4 vout => bool unspent)) public UTXOs;
     mapping(bytes32 txId => Transaction) transactions;
     mapping(uint256 blockId => Transaction[]) public blocks;
@@ -60,8 +61,9 @@ contract Node {
             outputSum += uint64(transaction.outputs[i].amount);
         }
         if (outputSum > inputSum) revert InvalidFee();
+        collectedFees += inputSum - outputSum;
 
-        txId = transaction.serializeTransaction().hash256().convertEndian();
+        txId = transaction.serializeTransactionLegacy().hash256().convertEndian();
         transactions[txId] = transaction;
         for (uint256 i; i < transaction.outputs.length; ++i) {
             UTXOs[txId][bytes4(uint32(i))] = true;
@@ -79,17 +81,50 @@ contract Node {
     /**
      * Verifies the signature
      * @param _transaction - Transaction
-     * @param _len - Transaction length
-     * @param _data - Additional data
+     * @param _len - Transaction input length
+     * @param _data - Additional data, e.g redeemScript
      * @dev Reverts if script type is not supported or
      * script fails, if successful does nothing
      */
     function _verifySignature(Transaction calldata _transaction, uint256 _len, bytes[] calldata _data) internal {
         Transaction memory tempTx = _transaction;
+        tempTx.isSegwit = false;
         for (uint256 i; i < _len; ++i) {
-            tempTx.inputs[i].scriptSig = hex"";
+            tempTx.inputs[i].scriptSig = "";
         }
-        bytes32 signatureHash;
+
+        // prepare the preimage for P2WPKH and P2WSH
+        bytes memory preimageStart;
+        bytes memory preimageEnd;
+        if (_transaction.isSegwit) {
+            for (uint256 i; i < _len; ++i) {
+                // prevouts
+                preimageStart = bytes.concat(
+                    preimageStart,
+                    bytes.concat(_transaction.inputs[i].txId).convertEndian(),
+                    bytes.concat(_transaction.inputs[i].vout).convertEndian()
+                );
+                // sequences
+                preimageEnd = bytes.concat(preimageEnd, bytes.concat(_transaction.inputs[i].sequence).convertEndian());
+            }
+            preimageStart = bytes.concat(
+                bytes.concat(_transaction.version).convertEndian(), preimageStart.hash256(), preimageEnd.hash256()
+            );
+
+            uint256 len = _transaction.outputs.length;
+            preimageEnd = "";
+            for (uint256 i; i < len; ++i) {
+                preimageEnd = bytes.concat(
+                    preimageEnd,
+                    bytes.concat(_transaction.outputs[i].amount).convertEndian(),
+                    _transaction.outputs[i].scriptPubKey.length.toVarint(),
+                    _transaction.outputs[i].scriptPubKey
+                );
+            }
+            preimageEnd = bytes.concat(preimageEnd.hash256(), bytes.concat(_transaction.locktime).convertEndian());
+        }
+
+        bytes memory preimage;
         bytes memory scriptPubKey;
         ScriptType scriptType;
         for (uint256 i; i < _len; ++i) {
@@ -98,28 +133,60 @@ contract Node {
             scriptType = _getScriptType(scriptPubKey);
             if (scriptType == ScriptType.P2PKH) {
                 tempTx.inputs[i].scriptSig = scriptPubKey;
-                signatureHash = bytes.concat(tempTx.serializeTransaction(), SIGHASH_ALL).hash256();
-                script.execute(
-                    bytes.concat(
-                        (_transaction.inputs[i].scriptSig.length + scriptPubKey.length).toVarint(),
-                        _transaction.inputs[i].scriptSig,
-                        scriptPubKey
-                    ),
-                    signatureHash
+                _execute(
+                    bytes.concat(_transaction.inputs[i].scriptSig, scriptPubKey),
+                    tempTx.serializeTransaction(),
+                    new bytes[](0)
                 );
             } else if (scriptType == ScriptType.P2SH) {
                 tempTx.inputs[i].scriptSig = _data[i];
-                signatureHash = bytes.concat(tempTx.serializeTransaction(), SIGHASH_ALL).hash256();
-                script.execute(
-                    bytes.concat(
-                        (_transaction.inputs[i].scriptSig.length + scriptPubKey.length).toVarint(),
-                        _transaction.inputs[i].scriptSig,
-                        scriptPubKey
-                    ),
-                    signatureHash
+                _execute(
+                    bytes.concat(_transaction.inputs[i].scriptSig, scriptPubKey),
+                    tempTx.serializeTransaction(),
+                    new bytes[](0)
                 );
+            } else if (scriptType == ScriptType.P2WPKH) {
+                preimage = bytes.concat(
+                    preimageStart,
+                    bytes.concat(_transaction.inputs[i].txId).convertEndian(),
+                    bytes.concat(_transaction.inputs[i].vout).convertEndian(),
+                    // scriptcode
+                    bytes3(0x1976a9),
+                    scriptPubKey.readFromMemory(1, 21),
+                    bytes2(0x88ac)
+                );
+                // avoiding `stack too deep` error
+                preimage = bytes.concat(
+                    preimage,
+                    bytes.concat(
+                        transactions[_transaction.inputs[i].txId].outputs[uint32(_transaction.inputs[i].vout)].amount
+                    ).convertEndian(),
+                    bytes.concat(_transaction.inputs[i].sequence).convertEndian(),
+                    preimageEnd
+                );
+                _execute(scriptPubKey, preimage, _transaction.witness[i]);
+            } else if (scriptType == ScriptType.P2WSH) {
+                preimage = bytes.concat(
+                    preimageStart,
+                    bytes.concat(_transaction.inputs[i].txId).convertEndian(),
+                    bytes.concat(_transaction.inputs[i].vout).convertEndian()
+                );
+                // avoiding `stack too deep` error
+                uint256 len = _transaction.witness[i][_transaction.witness[i].length - 1].length;
+                preimage = bytes.concat(preimage, len.toVarint());
+                len = _transaction.witness[i].length - 1;
+                preimage = bytes.concat(preimage, _transaction.witness[i][len]);
+                preimage = bytes.concat(
+                    preimage,
+                    bytes.concat(
+                        transactions[_transaction.inputs[i].txId].outputs[uint32(_transaction.inputs[i].vout)].amount
+                    ).convertEndian(),
+                    bytes.concat(_transaction.inputs[i].sequence).convertEndian(),
+                    preimageEnd
+                );
+                _execute(scriptPubKey, preimage, _transaction.witness[i]);
             }
-            tempTx.inputs[i].scriptSig = hex"";
+            tempTx.inputs[i].scriptSig = "";
         }
     }
 
@@ -140,8 +207,24 @@ contract Node {
                 && _scriptPubKey[22] == 0x87
         ) {
             return ScriptType.P2SH;
+        } else if (_scriptPubKey.length == 22 && _scriptPubKey[0] == 0x00 && _scriptPubKey[1] == 0x14) {
+            return ScriptType.P2WPKH;
+        } else if (_scriptPubKey.length == 34 && _scriptPubKey[0] == 0x00 && _scriptPubKey[1] == 0x20) {
+            return ScriptType.P2WSH;
         } else {
             revert NotSupported();
         }
+    }
+
+    /**
+     * Executes the script
+     * @param _script - Script
+     * @param _preimage - Preimage to hash
+     * @param _witness - Witness
+     */
+    function _execute(bytes memory _script, bytes memory _preimage, bytes[] memory _witness) internal {
+        script.execute(
+            bytes.concat(_script.length.toVarint(), _script), bytes.concat(_preimage, SIGHASH_ALL).hash256(), _witness
+        );
     }
 }

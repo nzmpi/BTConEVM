@@ -51,8 +51,11 @@ struct TxOutput {
  * @notice Represents a transaction
  */
 struct Transaction {
+    bool isSegwit;
     bytes4 version;
     bytes4 locktime;
     TxInput[] inputs;
     TxOutput[] outputs;
+    // witness is here, because using it in TxInput returns the unsolvable `stack too deep` error
+    bytes[][] witness;
 }
