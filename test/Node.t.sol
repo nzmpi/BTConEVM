@@ -42,17 +42,23 @@ contract TestNode is BaseTest {
         outputs[0].amount = bytes8(uint64(0));
         outputs[0].scriptPubKey = hex"6a245336ba7c125fd0e2bf432f2379eb849d6906c4adb9e1713ff2058c76c12ef50e1e07ac75";
 
-        Transaction memory transaction =
-            Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        Transaction memory transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
         _addPrevTx(inputs[0].txId, inputs[0].vout, 30000, hex"76a9144904d699fbdb22b2b8e240aa31153c26fbe606a088ac");
-
-        mock.validate(transaction, new bytes[](1));
         bytes32 txId = hex"44f76b52d6b5c9d2e3ebd0a9edb4fa551743cd97d8e8f23171247e64cae12f5b";
+        mock.validate(transaction, new bytes[](inputs.length));
         assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
         for (uint256 i; i < transaction.outputs.length; ++i) {
             assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
         }
+        assertEq(mock.collectedFees(), 30000);
 
         // https://btcscan.org/tx/a6a0c1bd11c35039b74b1d50e498a1c4f02bd4e8480da35ccf9d0bac2ef7547c
         inputs = new TxInput[](5);
@@ -82,7 +88,14 @@ contract TestNode is BaseTest {
         outputs[1].amount = bytes8(uint64(39708114));
         outputs[1].scriptPubKey = hex"76a914f8678d7aad9730afe575e4a8e51abfd44a510b8088ac";
 
-        transaction = Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
         _addPrevTx(inputs[0].txId, inputs[0].vout, 10000000, hex"76a91406f1b6703d3f56427bfcfd372f952d50d04b64bd88ac");
         _addPrevTx(inputs[1].txId, inputs[1].vout, 9909107, hex"76a91435508d36cd1919a9588a08bcb9db534b266f6c7e88ac");
@@ -90,12 +103,13 @@ contract TestNode is BaseTest {
         _addPrevTx(inputs[3].txId, inputs[3].vout, 9909107, hex"76a9149d56e762a05ffb6dd15da63672b0e8a1309469c088ac");
         _addPrevTx(inputs[4].txId, inputs[4].vout, 19867218, hex"76a914d4944c48a58a161b898bea6144721e77858a1e3288ac");
 
-        mock.validate(transaction, new bytes[](5));
+        mock.validate(transaction, new bytes[](inputs.length));
         txId = hex"a6a0c1bd11c35039b74b1d50e498a1c4f02bd4e8480da35ccf9d0bac2ef7547c";
         assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
         for (uint256 i; i < transaction.outputs.length; ++i) {
             assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
         }
+        assertEq(mock.collectedFees(), 80000);
     }
 
     function test_validate_P2SH() public {
@@ -111,8 +125,14 @@ contract TestNode is BaseTest {
         outputs[0].amount = bytes8(uint64(35560));
         outputs[0].scriptPubKey = hex"76a914b1df5abd0a71b36e02a8bde3a14b2f9083f8c9fd88ac";
 
-        Transaction memory transaction =
-            Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        Transaction memory transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
         _addPrevTx(inputs[0].txId, inputs[0].vout, 36259, hex"a9149678efcda8681c0e1b807b8b094a1f96a87c5bd087");
 
@@ -122,10 +142,10 @@ contract TestNode is BaseTest {
         mock.validate(transaction, redeemScript);
         bytes32 txId = hex"c7903b511d301cebae89c8e1eb9a521f742607015044430d5eef2656e88410f2";
         assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
-
         for (uint256 i; i < transaction.outputs.length; ++i) {
             assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
         }
+        assertEq(mock.collectedFees(), 699);
 
         // https://btcscan.org/tx/9d3c6335e0dd47c3fff78649b474936fa001046b61aab8fcfd002750403dc4e3
         inputs = new TxInput[](3);
@@ -149,7 +169,14 @@ contract TestNode is BaseTest {
         outputs[1].amount = bytes8(uint64(182453783));
         outputs[1].scriptPubKey = hex"a9140fda2d6bce7644a53bfd80c49c14286df1fa376a87";
 
-        transaction = Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
         _addPrevTx(inputs[0].txId, inputs[0].vout, 131259, hex"a91433275b5570d4a73c43ea9373d09c6d4fbe30213c87");
         _addPrevTx(inputs[1].txId, inputs[1].vout, 12320, hex"a9147862c6014f8054b8f712af5eebcbcba97943fbca87");
@@ -168,6 +195,202 @@ contract TestNode is BaseTest {
         for (uint256 i; i < transaction.outputs.length; ++i) {
             assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
         }
+        assertEq(mock.collectedFees(), 50699);
+    }
+
+    function test_validate_P2WPKH() public {
+        // https://btcscan.org/tx/0601987e3bae4aff6e86313c83df532f1c9c6251a142353da44e2004749f0090
+        TxInput[] memory inputs = new TxInput[](2);
+        inputs[0].txId = hex"b7823a744abd0aafe6792557bce8254b6c487a80f844181f8b9bdb93c62a3d45";
+        inputs[0].vout = bytes4(uint32(0));
+        inputs[0].scriptSig = "";
+        inputs[0].sequence = 0xffffffff;
+        inputs[1].txId = hex"d73e4018e72fcdf3f46ced8e044b970d89e4853ce65f135f11230ddbeda6184b";
+        inputs[1].vout = bytes4(uint32(49));
+        inputs[1].scriptSig = "";
+        inputs[1].sequence = 0xffffffff;
+
+        TxOutput[] memory outputs = new TxOutput[](1);
+        outputs[0].amount = bytes8(uint64(781059));
+        outputs[0].scriptPubKey = hex"76a914297b00828947f06bbe4015d8d227df0b7bc7de4788ac";
+
+        bytes[][] memory witnesses = new bytes[][](2);
+        for (uint256 i; i < witnesses.length; ++i) {
+            witnesses[i] = new bytes[](2);
+        }
+        witnesses[0][0] =
+            hex"3045022100868a4576136cb2225bffebd442e20df5e523c8251e2938493ab1f429d86ca5e602206590b80de4bc76008b1b14b9cedeb0c9069956b1703c60d2af78d005850c40ad01";
+        witnesses[0][1] = hex"039a3760db95fb87e152c5b82e5d66f55659475ea67c88cdb47fa62c0fde735069";
+        witnesses[1][0] =
+            hex"3044022057f692f09234de6c48303425d98f47bc4be394314bda5f71a33aa08d056af9b802207d4222293d4590e008079a568cb0e6ad5b56619f3b8e70c0c034465c6bc735b701";
+        witnesses[1][1] = hex"036defbddbfe49f2cb2fdc512aae1ee17eaca7b4b3f872ccc0b776a2066d897a05";
+
+        Transaction memory transaction = Transaction({
+            isSegwit: true,
+            version: 0x00000002,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: witnesses
+        });
+
+        _addPrevTx(inputs[0].txId, inputs[0].vout, 516235, hex"00140bfafd6c717cadb22959fb1ed56d37cc71c5f224");
+        _addPrevTx(inputs[1].txId, inputs[1].vout, 267708, hex"0014242899d4c7ee551a83e796f7cf37473095ef876b");
+
+        bytes32 txId = hex"0601987e3bae4aff6e86313c83df532f1c9c6251a142353da44e2004749f0090";
+        mock.validate(transaction, new bytes[](inputs.length));
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
+        assertEq(mock.collectedFees(), 2884);
+
+        // https://btcscan.org/tx/4172c7efdfc9326fdfe4f96b4108ef0fb300ec8b7e17f081666763f3e70d7d38
+        inputs = new TxInput[](3);
+        inputs[0].txId = hex"7b011fa1ef2ecfbc6009f8979e28e1774deec9f051708cf6d54d5dbff564e9f5";
+        inputs[0].vout = bytes4(uint32(1));
+        inputs[0].scriptSig = "";
+        inputs[0].sequence = 0xfffffffe;
+        inputs[1].txId = hex"0001cd7297c1105755fbce1dc4a2a71fcbec16e18c762d0d62097b7558ca7386";
+        inputs[1].vout = bytes4(uint32(1));
+        inputs[1].scriptSig = "";
+        inputs[1].sequence = 0xfffffffc;
+        inputs[2].txId = hex"75c5d6cb8f578e4d210e453a5c3ede1b41d48a3e3b04afb2e5e15845be07f39f";
+        inputs[2].vout = bytes4(uint32(4));
+        inputs[2].scriptSig = "";
+        inputs[2].sequence = 0xfffffffb;
+
+        outputs = new TxOutput[](2);
+        outputs[0].amount = bytes8(uint64(1340000));
+        outputs[0].scriptPubKey = hex"a9149eb8a0684b0884822d89a701d0274b460d42023787";
+        outputs[1].amount = bytes8(uint64(1126));
+        outputs[1].scriptPubKey = hex"0014d0e05a33dd8023493d212cf670269b0a27302620";
+
+        witnesses = new bytes[][](3);
+        for (uint256 i; i < witnesses.length; ++i) {
+            witnesses[i] = new bytes[](2);
+        }
+        witnesses[0][0] =
+            hex"3045022100f4d9b484bccdddc79b1975558ac15f5e09a9d4cca8887ec23013bd6f3f7da75f022039482f05bce2593a5e35daa653b167fde6523bfbbdc952fa4765c02a15fa65ac01";
+        witnesses[0][1] = hex"037416f88de7ba58cfafd43bb53a7127652e49d1bf7c53a8103a23dba6897e9522";
+        witnesses[1][0] =
+            hex"3045022100c79f75284fc9645e84353d7a47a8b7c2641b52fbe228614470d6f5864660a0730220102efd7054509414dba42823fd934ed84a670fd9ae1ba2f71a80ad26daa3b9a501";
+        witnesses[1][1] = hex"037416f88de7ba58cfafd43bb53a7127652e49d1bf7c53a8103a23dba6897e9522";
+        witnesses[2][0] =
+            hex"3044022027438091cf06338b79ad3aa9f80b672c45c494646b33e9049ed7a1e33bb24fa902200b111edd4da693d5e45798dd3984b7052098e431eded43628e09a43f6d85f04401";
+        witnesses[2][1] = hex"037416f88de7ba58cfafd43bb53a7127652e49d1bf7c53a8103a23dba6897e9522";
+
+        transaction = Transaction({
+            isSegwit: true,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: witnesses
+        });
+
+        _addPrevTx(inputs[0].txId, inputs[0].vout, 1815, hex"0014d0e05a33dd8023493d212cf670269b0a27302620");
+        _addPrevTx(inputs[1].txId, inputs[1].vout, 72503, hex"0014d0e05a33dd8023493d212cf670269b0a27302620");
+        _addPrevTx(inputs[2].txId, inputs[2].vout, 1268198, hex"0014d0e05a33dd8023493d212cf670269b0a27302620");
+
+        txId = hex"4172c7efdfc9326fdfe4f96b4108ef0fb300ec8b7e17f081666763f3e70d7d38";
+        mock.validate(transaction, new bytes[](inputs.length));
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
+        assertEq(mock.collectedFees(), 4274);
+    }
+
+    function test_validate_P2WSH() public {
+        // https://btcscan.org/tx/cab75da6d7fe1531c881d4efdb4826410a2604aa9e6442ab12a08363f34fb408
+        TxInput[] memory inputs = new TxInput[](1);
+        inputs[0].txId = hex"bd430d52f35166a7dd6251c73a48559ad8b5f41b6c5bc4a6c4c1a3e3702f4287";
+        inputs[0].vout = bytes4(uint32(0));
+        inputs[0].scriptSig = "";
+        inputs[0].sequence = 0xffffffff;
+
+        TxOutput[] memory outputs = new TxOutput[](1);
+        outputs[0].amount = bytes8(uint64(73182));
+        outputs[0].scriptPubKey = hex"00145d6f02f47dc6c57093df246e3742cfe1e22ab410";
+
+        bytes[][] memory witnesses = new bytes[][](1);
+        witnesses[0] = new bytes[](3);
+        witnesses[0][0] = "";
+        witnesses[0][1] =
+            hex"3045022100a9a7b273afe54da5f087cb2d995180251f2950cb3b08cd7126f3ebe0d9323335022008c49c695f8951fbb6837e157b9a243dc8a6c79334af529cde6af20a1749efef01";
+        witnesses[0][2] = hex"512103534da516a0ab32f30246620fdfbfaf1921228c1e222c6bd2fcddbcfd9024a1b651ae";
+
+        Transaction memory transaction = Transaction({
+            isSegwit: true,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: witnesses
+        });
+
+        _addPrevTx(
+            inputs[0].txId,
+            inputs[0].vout,
+            86591,
+            hex"0020916ff972855bf7589caf8c46a31f7f33b07d0100d953fde95a8354ac36e98165"
+        );
+
+        bytes32 txId = hex"cab75da6d7fe1531c881d4efdb4826410a2604aa9e6442ab12a08363f34fb408";
+        mock.validate(transaction, new bytes[](inputs.length));
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
+        assertEq(mock.collectedFees(), 13409);
+
+        // https://btcscan.org/tx/c3f8561e3e84d43c051d8b55552491f7c7a5ae7df91557fd41d0a23fd1e7f9d6
+        inputs = new TxInput[](1);
+        inputs[0].txId = hex"2fff4c03393b3862944cabf856554a3432b776c15a891edec9058fbe814650a9";
+        inputs[0].vout = bytes4(uint32(5));
+        inputs[0].scriptSig = "";
+        inputs[0].sequence = 0xffffffff;
+
+        outputs = new TxOutput[](2);
+        outputs[0].amount = bytes8(uint64(9400000));
+        outputs[0].scriptPubKey = hex"76a914609c5a63404058e84050589b0d42596df6227f9a88ac";
+        outputs[1].amount = bytes8(uint64(2529460));
+        outputs[1].scriptPubKey = hex"0020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d";
+
+        witnesses = new bytes[][](1);
+        witnesses[0] = new bytes[](4);
+        witnesses[0][0] = "";
+        witnesses[0][1] =
+            hex"304402203d4792374190fc43f8a4cc4612c683f5f02ce654d926fb8d342d154965fe4e1a02204afb3b09c6e13582ab05771f7bf6f76ef5fce8b6976c8159e9d0e04561bd40cc01";
+        witnesses[0][2] =
+            hex"304402206d9cd5e79fac1c3a1f0cdf4591bab7bf24cd7997eef7e580d3c5e08f73c32ee8022053d722c60fcd5ab441a469412b069831a9a633f4ec9c3bdf8419cb53cd4eb69601";
+        witnesses[0][3] =
+            hex"52210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae";
+
+        transaction = Transaction({
+            isSegwit: true,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: witnesses
+        });
+
+        _addPrevTx(
+            inputs[0].txId,
+            inputs[0].vout,
+            11969460,
+            hex"0020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d"
+        );
+
+        txId = hex"c3f8561e3e84d43c051d8b55552491f7c7a5ae7df91557fd41d0a23fd1e7f9d6";
+        mock.validate(transaction, new bytes[](inputs.length));
+        assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
+        for (uint256 i; i < transaction.outputs.length; ++i) {
+            assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
+        }
+        assertEq(mock.collectedFees(), 53409);
     }
 
     function test_validate_mixed() public {
@@ -192,8 +415,14 @@ contract TestNode is BaseTest {
         outputs[2].amount = bytes8(uint64(122747));
         outputs[2].scriptPubKey = hex"76a914becac737c973aab0e5530c611b9ac39b582d38c288ac";
 
-        Transaction memory transaction =
-            Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        Transaction memory transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
         _addPrevTx(inputs[0].txId, inputs[0].vout, 98500024, hex"a91462e5205f71ff7146044c73c6ae0f1710bdcf519987");
         _addPrevTx(inputs[1].txId, inputs[1].vout, 8061624, hex"76a914b568d34f957022f79e6f6b6980ddf289b1532ec188ac");
@@ -201,20 +430,27 @@ contract TestNode is BaseTest {
         bytes[] memory redeemScript = new bytes[](2);
         redeemScript[0] =
             hex"522102907a54bed8ad74b3f35638c60114ca240a308cb986f3f2f306178869a8880b612103bc94de59cdfdf34c1b1977570ec1d6cd73532323d6d7cf9ae1418d5c0144ee6652ae";
-        redeemScript[1] = hex"";
+        redeemScript[1] = "";
         mock.validate(transaction, redeemScript);
         bytes32 txId = hex"f228eda842bd635511ae6f4b4b24cc74cc03d385231d10d1d69b15db1442e6db";
         assertEq(mock.getTransaction(txId).serializeTransaction(), transaction.serializeTransaction());
         for (uint256 i; i < transaction.outputs.length; ++i) {
             assertTrue(mock.UTXOs(txId, bytes4(uint32(i))));
         }
+        assertEq(mock.collectedFees(), 9908);
     }
 
     function test_invalid_validate() public {
         TxInput[] memory inputs = new TxInput[](0);
         TxOutput[] memory outputs = new TxOutput[](0);
-        Transaction memory transaction =
-            Transaction({version: 0x00000001, inputs: inputs, outputs: outputs, locktime: 0});
+        Transaction memory transaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: inputs,
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
         // no inputs
         vm.expectRevert(Node.InvalidTxInputs.selector);
         mock.validate(transaction, new bytes[](1));
@@ -280,9 +516,15 @@ contract TestNode is BaseTest {
         TxOutput[] memory outputs = new TxOutput[](uint32(_vout) + 1);
         outputs[uint32(_vout)].amount = bytes8(_amount);
         outputs[uint32(_vout)].scriptPubKey = _scriptPubKey;
-        Transaction memory transaction =
-            Transaction({version: 0x00000001, inputs: new TxInput[](0), outputs: outputs, locktime: 0});
+        Transaction memory prevTransaction = Transaction({
+            isSegwit: false,
+            version: 0x00000001,
+            inputs: new TxInput[](0),
+            outputs: outputs,
+            locktime: 0,
+            witness: new bytes[][](0)
+        });
 
-        mock.addTransaction(_txId, transaction);
+        mock.addTransaction(_txId, prevTransaction);
     }
 }

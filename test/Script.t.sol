@@ -64,7 +64,7 @@ contract TestScript is BaseTest {
     function test_op_0() public {
         // push 1 so script is valid
         _execute(hex"0051");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
     }
 
@@ -250,8 +250,8 @@ contract TestScript is BaseTest {
         assertEq(mock.getStackElement(2), hex"19bd1dfa19");
 
         _execute(hex"007651");
-        assertEq(mock.getStackElement(0), hex"");
-        assertEq(mock.getStackElement(1), hex"");
+        assertEq(mock.getStackElement(0), "");
+        assertEq(mock.getStackElement(1), "");
         assertEq(mock.getStackElement(2), hex"01");
 
         vm.expectRevert(Script.StackIsEmpty.selector);
@@ -265,7 +265,7 @@ contract TestScript is BaseTest {
 
         _execute(hex"5251007c");
         assertEq(mock.getStackElement(0), hex"02");
-        assertEq(mock.getStackElement(1), hex"");
+        assertEq(mock.getStackElement(1), "");
         assertEq(mock.getStackElement(2), hex"01");
 
         _execute(hex"4c0519bd1dfa19527c");
@@ -303,20 +303,20 @@ contract TestScript is BaseTest {
 
     function test_op_not() public {
         _execute(hex"519151");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
 
         _execute(hex"0091");
         assertEq(mock.getStackElement(0), hex"01");
 
         _execute(hex"529151");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
     }
 
     function test_op_add() public {
         _execute(hex"00009351");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
 
         _execute(hex"510093");
@@ -329,7 +329,7 @@ contract TestScript is BaseTest {
         assertEq(mock.getStackElement(0), hex"01");
 
         _execute(hex"4c0181519351");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
 
         vm.expectRevert(Script.BadNumber.selector);
@@ -363,7 +363,7 @@ contract TestScript is BaseTest {
 
     function test_op_sub() public {
         _execute(hex"00009451");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
 
         _execute(hex"510094");
@@ -379,7 +379,7 @@ contract TestScript is BaseTest {
         assertEq(mock.getStackElement(0), hex"03");
 
         _execute(hex"4c01814c01819451");
-        assertEq(mock.getStackElement(0), hex"");
+        assertEq(mock.getStackElement(0), "");
         assertEq(mock.getStackElement(1), hex"01");
 
         vm.expectRevert(Script.BadNumber.selector);
@@ -702,11 +702,11 @@ contract TestScript is BaseTest {
     }
 
     function _execute(bytes memory _script) internal {
-        mock.execute(bytes.concat(_script.length.toVarint(), _script), bytes32(signatureHash));
+        mock.execute(bytes.concat(_script.length.toVarint(), _script), bytes32(signatureHash), new bytes[](0));
     }
 
     function _intToBytes(int32 _x) internal pure returns (bytes memory res) {
-        if (_x == 0) return hex"";
+        if (_x == 0) return "";
 
         int256 x = _x;
         if (x < 0) {
