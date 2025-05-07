@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Wallet} from "../src/Wallet.sol";
 import {Address} from "../src/lib/Address.sol";
-import "./utils/BaseTest.sol";
-import {MockNode} from "./Node.t.sol";
 import "../src/lib/Structs.sol";
 import {ScriptType} from "../src/lib/Types.sol";
 import "../src/lib/Utils.sol";
-import {Wallet} from "../src/Wallet.sol";
+import {MockNode} from "./Node.t.sol";
+import "./utils/BaseTest.sol";
 
 contract MockWallet is Wallet {
     using Utils for uint256;

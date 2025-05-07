@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
 import "../src/lib/Base58.sol";
+import "./utils/BaseTest.sol";
 
 contract TestBase58 is BaseTest {
     using Base58 for bytes;

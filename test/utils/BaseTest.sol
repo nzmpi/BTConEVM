@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
 import {ECBTC} from "../../src/lib/ECBTC.sol";
 import {Point} from "../../src/lib/Structs.sol";
+import "forge-std/Test.sol";
 
 contract BaseTest is Test {
     using ECBTC for uint256;

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ECBTC} from "./ECBTC.sol";
 import {SerialLib} from "./SerialLib.sol";
-import {Signature, Point} from "./Structs.sol";
+import {Point, Signature} from "./Structs.sol";
 
 /**
  * @title SigLib - Signature Library

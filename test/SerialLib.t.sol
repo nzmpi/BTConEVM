@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
 import {SerialLib} from "../src/lib/SerialLib.sol";
 import {SigLib} from "../src/lib/SigLib.sol";
 import "../src/lib/Structs.sol";
+import "./utils/BaseTest.sol";
 
 contract MockSerialLib {
     using SerialLib for bytes;

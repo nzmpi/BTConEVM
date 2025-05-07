@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Node} from "./Node.sol";
 import {Address} from "./lib/Address.sol";
 import {ECBTC} from "./lib/ECBTC.sol";
-import {Node} from "./Node.sol";
 import {SerialLib} from "./lib/SerialLib.sol";
 import {SigLib} from "./lib/SigLib.sol";
 import "./lib/Structs.sol";

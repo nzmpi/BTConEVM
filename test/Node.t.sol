@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
+import {Node} from "../src/Node.sol";
 import {Script} from "../src/Script.sol";
 import {SerialLib} from "../src/lib/SerialLib.sol";
 import "../src/lib/Structs.sol";
-import {Node} from "../src/Node.sol";
 import "../src/lib/Utils.sol";
+import "./utils/BaseTest.sol";
 
 contract MockNode is Node(new Script()) {
     function addUTXO(bytes32 txId, bytes4 vout) external {

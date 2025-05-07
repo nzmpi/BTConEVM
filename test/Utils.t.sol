@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
 import "../src/lib/Utils.sol";
+import "./utils/BaseTest.sol";
 
 contract MockUtils {
     using Utils for *;

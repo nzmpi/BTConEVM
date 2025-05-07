@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
 import {Address} from "../src/lib/Address.sol";
 import {ScriptType} from "../src/lib/Types.sol";
+import "./utils/BaseTest.sol";
 
 contract MockAddress {
     using Address for bytes;

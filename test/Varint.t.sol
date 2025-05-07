@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./utils/BaseTest.sol";
 import {Varint} from "../src/lib/Varint.sol";
+import "./utils/BaseTest.sol";
 
 contract TestVarint is BaseTest {
     using Varint for *;
