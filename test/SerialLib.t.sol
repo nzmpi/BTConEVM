@@ -29,6 +29,16 @@ contract TestSerialLib is BaseTest {
         hex"0100000000010299908210f33c8055dd4193a8801c4f60297c40b1f479c517f5fff92857d8c66f020000006a4730440220618d6a5b0e9758e6a18ee4eb2737fbce220745658d9bea3f145408b67e83f7af02205915852662634783220ed58370b984081e6b0abdbcd2caeec9a72f19f1a5ddd101210326efb2708b4e0e1950706a4d7cbaa063ed2aa32afbedc5793a533a723f767fbeffffffff1fb4851ea0efe0a1efa09bdd8cf21d85ff649f51d49e5eb60eab6e2a7f0c280b010000001716001470c79be6d74420b7920dca35849cb5a37e2e60beffffffff040000000000000000166a146f6d6e69000000000000001f000000912571427cf34e0a000000000017a91438a9ee60e46a957475e429585dc63bb6fd84dd288722020000000000001976a914e3d41f555febacef735148156e7f3ce866d0a00188ac22020000000000001976a9148b9237e241576595d294c07a793847fd2b628b8088ac000247304402205c2441e0feb05bba4890d28bd95449c2a3d26703af552f84d4a272815e25cd6b022068eb6f6acdd7652ea0fc2796d56aa2e7a4347497e05159d90acd0c775cff31b1012102a879a0629b5c6cbdba08f41601ad331e1e100961b19e6396e76a576acdb8ce3300000000"
     ];
 
+    bytes[5] rawBlocks = [
+        bytes(
+            hex"0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c00"
+        ),
+        hex"010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e3629900",
+        hex"00a07021586496e770916eb8f96ea80bc8234bec3ff1dd5f18d504000000000000000000ceee572ab32a562d81d62739aa898e45c1b199b1027bff5b2439ce4318003e1463f1586401dd05170309327c00",
+        hex"0000c0205fe93fb0cd61c639c6d112258ba3d739c3dbaec6e76a0d0000000000000000000ba3c93411fca1c7da46a5d8a05a27272d71edc0ddbf37ce289afb9615a75107622cca5f56b10e171cc45f7900",
+        hex"00e0ff3fcf989b1865a0b521e8c1cfbab22d644659692be568ae07000000000000000000d9f0bb3926ead82b9e9581a990f9ba6d49997e63e8ca17513eb88a4cf4e715bd49adfa5ef2d411170e4626c5028581456ab981e71b43e39d72d79cca362f9558b60c99029f226ef07d5d83c44a61d30b840881c84f8f6626756827a140119ac68a58fee2c445f1fad50bd2504e"
+    ];
+
     function test_serializePublicKey() public view {
         bytes memory result = pubKey.serializePublicKey(false);
         bytes memory expected = bytes.concat(bytes1(0x04), bytes32(pubKey.x), bytes32(pubKey.y));
@@ -342,90 +352,80 @@ contract TestSerialLib is BaseTest {
         assertEq(resTx.locktime, hex"00000000", "Wrong locktime 4");
     }
 
-    function test_serializeBlock() public pure {
-        Block[3] memory blocks = [
-            Block({
-                version: 0x20000000,
-                prevBlock: 0x00000000000000000004b8b7b468f2950450637f44c5e90e7cc6dbae5a1f8f59,
-                merkleRoot: 0xc7553a4feda474950f2dd5fb67afb66ba269a529013c074e6bc89dc741023113,
-                timestamp: 0x63b8bace,
-                bits: 0x1708417e,
-                nonce: 0x070e3d8b
-            }),
-            Block({
-                version: 0x00000002,
-                prevBlock: 0x00000000000000002385fc3323ef9106b1f92f25d769da47a2fe471c12b0ee86,
-                merkleRoot: 0x3a91c2c3df6d70ebdab8205122526de240ed68dad0a96f1dea575b09c1614176,
-                timestamp: 0x5324d347,
-                bits: 0x190102b1,
-                nonce: 0xce0c08a1
-            }),
-            Block({
-                version: 0x2c000000,
-                prevBlock: 0x00000000000000000001fead2d97e0a1e5ff4f91487bd1584084775b5d4fde1f,
-                merkleRoot: 0x5ba72207b02104621b17c346716e71475371012b52ca895f21628b13729d4c9f,
-                timestamp: 0x66f6b61d,
-                bits: 0x17032f14,
-                nonce: 0x1e7d3a1c
-            })
-        ];
-        bytes[3] memory expected = [
-            bytes(
-                hex"00000020598f1f5aaedbc67c0ee9c5447f63500495f268b4b7b80400000000000000000013310241c79dc86b4e073c0129a569a26bb6af67fbd52d0f9574a4ed4f3a55c7cebab8637e4108178b3d0e07"
-            ),
-            hex"0200000086eeb0121c47fea247da69d7252ff9b10691ef2333fc85230000000000000000764161c1095b57ea1d6fa9d0da68ed40e26d52225120b8daeb706ddfc3c2913a47d32453b1020119a1080cce",
-            hex"0000002c1fde4f5d5b77844058d17b48914fffe5a1e0972dadfe010000000000000000009f4c9d72138b62215f89ca522b01715347716e7146c3171b620421b00722a75b1db6f666142f03171c3a7d1e"
-        ];
-
-        for (uint256 i; i < blocks.length; ++i) {
-            assertEq(blocks[i].serializeBlock(), expected[i], "Wrong serialized block");
+    function test_serializeBlock() public view {
+        for (uint256 i; i < rawBlocks.length; ++i) {
+            assertEq(rawBlocks[i].parseBlock().serializeBlock(), rawBlocks[i], "Wrong serialized block");
         }
     }
 
-    function test_parseBlock() public pure {
-        bytes[3] memory blocks = [
-            bytes(
-                hex"00000120fcac6c69e636b9c5673eb2a0f1522626b5906dab1440050000000000000000005c0af9d91c349e5b398745a98c8c1c084f154ac3618b8438227036ee6d388b46cdc5ed63393007177b233b43"
-            ),
-            hex"03000000fab50fe13f00760d63b3de62ae06567f24ef3f10cf82af01000000000000000097bdcd8436b081bf64453132d536da7a1f57eac39607c16eae7e3033e4373a7a87cf4855dd131718814bd656",
-            hex"0100000079c710b2420be69435963a6e264306b351d7759d4e4ea212dd4be6000000000019a84e4507d3f7c2dc58051c62baf4cad5a020858efe42855811abc35c3d03be09dc484cfd68011c173b6c17"
-        ];
-        Block[3] memory expected = [
+    function test_parseBlock() public view {
+        Block[5] memory expected = [
             Block({
-                version: 0x20010000,
-                prevBlock: 0x000000000000000000054014ab6d90b5262652f1a0b23e67c5b936e6696cacfc,
-                merkleRoot: 0x468b386dee36702238848b61c34a154f081c8c8ca94587395b9e341cd9f90a5c,
-                timestamp: 0x63edc5cd,
-                bits: 0x17073039,
-                nonce: 0x433b237b
-            }),
-            Block({
-                version: 0x00000003,
-                prevBlock: 0x000000000000000001af82cf103fef247f5606ae62deb3630d76003fe10fb5fa,
-                merkleRoot: 0x7a3a37e433307eae6ec10796c3ea571f7ada36d532314564bf81b03684cdbd97,
-                timestamp: 0x5548cf87,
-                bits: 0x181713dd,
-                nonce: 0x56d64b81
+                version: 0x00000001,
+                prevBlock: 0x0000000000000000000000000000000000000000000000000000000000000000,
+                merkleRoot: 0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b,
+                timestamp: 0x495fab29,
+                bits: 0x1d00ffff,
+                nonce: 0x7c2bac1d,
+                transactionHashes: new bytes32[](0)
             }),
             Block({
                 version: 0x00000001,
-                prevBlock: 0x0000000000e64bdd12a24e4e9d75d751b30643266e3a963594e60b42b210c779,
-                merkleRoot: 0xbe033d5cc3ab11588542fe8e8520a0d5caf4ba621c0558dcc2f7d307454ea819,
-                timestamp: 0x4c48dc09,
-                bits: 0x1c0168fd,
-                nonce: 0x176c3b17
+                prevBlock: 0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f,
+                merkleRoot: 0x0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098,
+                timestamp: 0x4966bc61,
+                bits: 0x1d00ffff,
+                nonce: 0x9962e301,
+                transactionHashes: new bytes32[](0)
+            }),
+            Block({
+                version: 0x2170a000,
+                prevBlock: 0x00000000000000000004d5185fddf13fec4b23c80ba86ef9b86e9170e7966458,
+                merkleRoot: 0x143e001843ce39245bff7b02b199b1c1458e89aa3927d6812d562ab32a57eece,
+                timestamp: 0x6458f163,
+                bits: 0x1705dd01,
+                nonce: 0x7c320903,
+                transactionHashes: new bytes32[](0)
+            }),
+            Block({
+                version: 0x20c00000,
+                prevBlock: 0x0000000000000000000d6ae7c6aedbc339d7a38b2512d1c639c661cdb03fe95f,
+                merkleRoot: 0x0751a71596fb9a28ce37bfddc0ed712d27275aa0d8a546dac7a1fc1134c9a30b,
+                timestamp: 0x5fca2c62,
+                bits: 0x170eb156,
+                nonce: 0x795fc41c,
+                transactionHashes: new bytes32[](0)
+            }),
+            Block({
+                version: 0x3fffe000,
+                prevBlock: 0x00000000000000000007ae68e52b695946642db2bacfc1e821b5a065189b98cf,
+                merkleRoot: 0xbd15e7f44c8ab83e5117cae8637e99496dbaf990a981959e2bd8ea2639bbf0d9,
+                timestamp: 0x5efaad49,
+                bits: 0x1711d4f2,
+                nonce: 0xc526460e,
+                transactionHashes: new bytes32[](2)
             })
         ];
+        expected[4].transactionHashes[0] = 0x4ac4835d7df06e229f02990cb658952f36ca9cd7729de3431be781b96a458185;
+        expected[4].transactionHashes[1] = 0x4e50d20bd5faf145c4e2fe588ac69a1140a127687526668f4fc88108840bd361;
 
         Block memory res;
-        for (uint256 i; i < blocks.length; ++i) {
-            res = blocks[i].parseBlock();
+        for (uint256 i; i < rawBlocks.length; ++i) {
+            res = rawBlocks[i].parseBlock();
             assertEq(res.version, expected[i].version, "Wrong version");
             assertEq(res.prevBlock, expected[i].prevBlock, "Wrong prevBlock");
             assertEq(res.merkleRoot, expected[i].merkleRoot, "Wrong merkleRoot");
             assertEq(res.timestamp, expected[i].timestamp, "Wrong timestamp");
             assertEq(res.bits, expected[i].bits, "Wrong bits");
             assertEq(res.nonce, expected[i].nonce, "Wrong nonce");
+            assertEq(
+                res.transactionHashes.length, expected[i].transactionHashes.length, "Wrong transactionHashes length"
+            );
+            if (res.transactionHashes.length > 0) {
+                for (uint256 j; j < res.transactionHashes.length; ++j) {
+                    assertEq(res.transactionHashes[j], expected[i].transactionHashes[j], "Wrong transactionHash");
+                }
+            }
         }
     }
 }
