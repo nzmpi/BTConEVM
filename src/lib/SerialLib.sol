@@ -72,10 +72,10 @@ library SerialLib {
      * @return res - The serialized signature
      */
     function serializeSignature(Signature memory _sig) internal pure returns (bytes memory res) {
-        res = firstByteCheck(_sig.s.uint256ToBytes());
+        res = _firstByteCheck(_sig.s.uint256ToBytes());
         // 0x02 - a marker
         res = bytes.concat(bytes1(0x02), bytes1(uint8(res.length)), res);
-        bytes memory r = firstByteCheck(_sig.r.uint256ToBytes());
+        bytes memory r = _firstByteCheck(_sig.r.uint256ToBytes());
         res = bytes.concat(bytes1(0x02), bytes1(uint8(r.length)), r, res);
         // 0x30 - a marker
         res = bytes.concat(bytes1(0x30), bytes1(uint8(res.length)), res);
@@ -251,7 +251,6 @@ library SerialLib {
      */
     function parseTransaction(bytes memory _data) internal pure returns (Transaction memory res) {
         res.version = bytes4(_data.readFromMemory(0, 4).convertEndian());
-        uint256 len;
         uint256 ptr = 4;
         // segwit marker and flag
         if (bytes2(_data.readFromMemory(ptr, 2)) == bytes2(0x0001)) {
@@ -259,6 +258,7 @@ library SerialLib {
             ptr += 2;
         }
 
+        uint256 len;
         (len, ptr) = _data.fromVarint(ptr);
         if (len == 0) revert BadData();
 
@@ -310,6 +310,21 @@ library SerialLib {
      * @return res - The serialized block
      */
     function serializeBlock(Block memory _block) internal pure returns (bytes memory res) {
+        res = serializeBlockHeader(_block);
+        uint256 len = _block.transactionHashes.length;
+        res = bytes.concat(res, len.toVarint());
+
+        for (uint256 i; i < len; ++i) {
+            res = bytes.concat(res, _block.transactionHashes[i].convertEndian());
+        }
+    }
+
+    /**
+     * Serializes block header
+     * @param _block - The block to be serialized
+     * @return res - The serialized block header
+     */
+    function serializeBlockHeader(Block memory _block) internal pure returns (bytes memory res) {
         res = bytes.concat(
             bytes.concat(_block.version).convertEndian(),
             _block.prevBlock.convertEndian(),
@@ -326,6 +341,26 @@ library SerialLib {
      * @return res - The parsed block
      */
     function parseBlock(bytes memory _data) internal pure returns (Block memory res) {
+        res = parseBlockHeader(_data);
+
+        if (_data.length < 81) revert BadData();
+        (uint256 len, uint256 offset) = _data.fromVarint(80);
+        if (_data.length < offset + len * 32) revert BadData();
+
+        res.transactionHashes = new bytes32[](len);
+        for (uint256 i; i < len; ++i) {
+            res.transactionHashes[i] = bytes32(_data.readFromMemory(offset, 32).convertEndian());
+            offset += 32;
+        }
+    }
+
+    /**
+     * Parses block header
+     * @param _data - The data to be parsed
+     * @return res - The parsed block header
+     */
+    function parseBlockHeader(bytes memory _data) internal pure returns (Block memory res) {
+        if (_data.length < 80) revert BadData();
         res.version = bytes4(_data.readFromMemory(0, 4).convertEndian());
         res.prevBlock = bytes32(_data.readFromMemory(4, 32).convertEndian());
         res.merkleRoot = bytes32(_data.readFromMemory(36, 32).convertEndian());
@@ -337,10 +372,10 @@ library SerialLib {
     /**
      * Checks if the first byte is greater than 0x80
      * If it is, prepends 0x00
-     * @param x - s or r from signature
+     * @param _x - s or r from signature
      * @return The result
      */
-    function firstByteCheck(bytes memory x) private pure returns (bytes memory) {
-        return x[0] > 0x80 ? bytes.concat(bytes1(0x00), x) : x;
+    function _firstByteCheck(bytes memory _x) private pure returns (bytes memory) {
+        return _x[0] > 0x80 ? bytes.concat(bytes1(0x00), _x) : _x;
     }
 }

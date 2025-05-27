@@ -6,11 +6,12 @@ pragma solidity ^0.8.24;
  */
 struct Block {
     bytes4 version;
-    bytes32 prevBlock;
-    bytes32 merkleRoot;
     bytes4 timestamp;
     bytes4 bits;
     bytes4 nonce;
+    bytes32 prevBlock;
+    bytes32 merkleRoot;
+    bytes32[] transactionHashes;
 }
 
 /**
