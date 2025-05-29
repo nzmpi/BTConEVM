@@ -54,6 +54,19 @@ library Utils {
     }
 
     /**
+     * Converts the endianness of the bytes32 array
+     * @param _data - The data to convert
+     * return res - Converted data
+     */
+    function convertEndian(bytes32[] memory _data) internal pure returns (bytes32[] memory res) {
+        uint256 len = _data.length;
+        res = new bytes32[](len);
+        for (uint256 i; i < len; ++i) {
+            res[i] = convertEndian(_data[i]);
+        }
+    }
+
+    /**
      * Converts bytes to uint256
      * @dev Reverts if length is greater than 32
      * @param _data - The data to be converted
