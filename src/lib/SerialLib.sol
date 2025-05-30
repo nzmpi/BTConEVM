@@ -9,7 +9,7 @@ import {Varint} from "./Varint.sol";
 
 /**
  * @title SerialLib - Serialization Library
- * @notice Takes care of serializing public keys, signatures and private keys.
+ * @notice Takes care of serializing public keys, signatures, private keys, transactions and blocks.
  * @author https://github.com/nzmpi
  */
 library SerialLib {
