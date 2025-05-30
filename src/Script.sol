@@ -18,7 +18,7 @@ contract Script {
     using Varint for *;
 
     bytes32 constant KECCAK_01 = keccak256(hex"01");
-    uint256 signatureHash;
+    uint256 _signatureHash;
     bytes[] stack;
     mapping(bytes32 opcode => function(bytes calldata, uint256) returns (uint256)) opcodes;
 
@@ -67,17 +67,17 @@ contract Script {
     /**
      * Executes the script
      * @param script - ScriptSig + ScriptPubKey
-     * @param _signatureHash - Signature hash
+     * @param signatureHash - Signature hash
      * @param witness - Witness
      */
-    function execute(bytes calldata script, bytes32 _signatureHash, bytes[] calldata witness) external {
+    function execute(bytes calldata script, bytes32 signatureHash, bytes[] calldata witness) external {
         uint256 len = script.length;
         if (len == 0) revert ScriptIsEmpty();
         // the pointer
         uint256 ptr;
         (len, ptr) = script.fromVarint(ptr);
         if (len == 0) revert ScriptIsEmpty();
-        signatureHash = uint256(_signatureHash);
+        _signatureHash = uint256(signatureHash);
         // an opcode
         bytes32 op;
         // we read the script byte by byte until we reach the end
@@ -120,7 +120,7 @@ contract Script {
                 for (uint256 i; i < m; ++i) {
                     stack.push(witness[i]); // signatures
                 }
-                this.execute(bytes.concat(witness[m].length.toVarint(), witness[m]), _signatureHash, witness);
+                this.execute(bytes.concat(witness[m].length.toVarint(), witness[m]), signatureHash, witness);
                 // we don't break here, because we don't want to continue the script
                 return;
             } else {
@@ -362,7 +362,7 @@ contract Script {
         bytes memory pubKey = stack[len];
         bytes memory sig = stack[--len];
         stack.pop();
-        if (signatureHash.verify(sig, pubKey)) {
+        if (_signatureHash.verify(sig, pubKey)) {
             stack[len] = hex"01";
         } else {
             stack[len] = "";
@@ -407,7 +407,7 @@ contract Script {
             // ignore the last 1 byte
             signature = stack[index].readFromMemory(0, stack[index].length - 1);
             while (j < pubKeyLen) {
-                if (signatureHash.verify(signature, pubKeys[j])) {
+                if (_signatureHash.verify(signature, pubKeys[j])) {
                     ++verifiedSignatures;
                     ++j;
                     break;
