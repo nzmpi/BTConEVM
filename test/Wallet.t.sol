@@ -62,6 +62,13 @@ contract TestWallet is BaseTest {
         _addTransaction(
             true, inputs.txIds[3], inputs.vouts[3], bytes.concat(bytes2(0x0020), sha256(mock.getRedeemScript(3)))
         );
+        vm.warp(100);
+        node.addDataForBlock(
+            hex"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000",
+            hex"00000001",
+            hex"44800000",
+            1
+        );
         bytes32 txId = mock.sendTransaction(node, inputs, outputs);
         assertEq(node.collectedFees(), 3000);
 
@@ -83,6 +90,13 @@ contract TestWallet is BaseTest {
         outputs.tos[0] = bytes("1E1acnMGhWR69vSgH8c4CGEQHVpaVdQdbH");
         outputs.scripts = new bytes[](1);
 
+        vm.warp(101);
+        node.addDataForBlock(
+            hex"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000",
+            hex"00000001",
+            hex"3e23e000",
+            2
+        );
         mock.sendTransaction(node, inputs, outputs);
         assertEq(node.collectedFees(), 3090);
     }
