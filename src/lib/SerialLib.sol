@@ -29,7 +29,7 @@ library SerialLib {
     function serializePublicKey(Point memory _pubKey, bool _isCompressed) internal pure returns (bytes memory) {
         if (_isCompressed) {
             // compressed
-            if (_pubKey.y % 2 == 0) {
+            if (_pubKey.y & 1 == 0) {
                 return bytes.concat(bytes1(0x02), bytes32(_pubKey.x));
             } else {
                 return bytes.concat(bytes1(0x03), bytes32(_pubKey.x));

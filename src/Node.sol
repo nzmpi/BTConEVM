@@ -388,7 +388,7 @@ contract Node {
         uint256 len = _transactionHashes.length;
         if (len == 1) return _transactionHashes[0];
 
-        bytes32[] memory temp = new bytes32[](len % 2 == 0 ? len / 2 : len / 2 + 1);
+        bytes32[] memory temp = new bytes32[](len & 1 == 0 ? len / 2 : len / 2 + 1);
         for (uint256 i; i < len; i += 2) {
             if (i + 1 < len) {
                 temp[i / 2] = bytes32(bytes.concat(_transactionHashes[i], _transactionHashes[i + 1]).hash256());
