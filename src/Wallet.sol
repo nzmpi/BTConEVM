@@ -85,7 +85,8 @@ contract Wallet {
         external
         returns (bytes32 txId)
     {
-        Transaction memory transaction = Transaction({
+        Transaction[] memory transactions = new Transaction[](1);
+        transactions[0] = Transaction({
             isSegwit: false,
             version: VERSION,
             inputs: _getTxInputs(inputArgs.txIds, inputArgs.vouts),
@@ -95,20 +96,22 @@ contract Wallet {
         });
 
         (bool isSegwit, bytes[] memory scriptSigs, bytes[] memory redeemScripts, bytes[][] memory witnesses) =
-            _signTransaction(node, inputArgs.inputTypes, inputArgs.signingPrivateKeys, transaction);
+            _signTransaction(node, inputArgs.inputTypes, inputArgs.signingPrivateKeys, transactions[0]);
 
         uint256 len = inputArgs.inputTypes.length;
         for (uint256 i; i < len; ++i) {
-            transaction.inputs[i].scriptSig = scriptSigs[i];
+            transactions[0].inputs[i].scriptSig = scriptSigs[i];
         }
 
         if (isSegwit) {
-            transaction.isSegwit = isSegwit;
-            transaction.witness = witnesses;
+            transactions[0].isSegwit = isSegwit;
+            transactions[0].witness = witnesses;
         }
 
-        txId = transaction.serializeTransactionLegacy().hash256().convertEndian();
-        node.validate(transaction, redeemScripts);
+        txId = transactions[0].serializeTransactionLegacy().hash256().convertEndian();
+        bytes[][] memory data = new bytes[][](1);
+        data[0] = redeemScripts;
+        node.validate(transactions, data);
     }
 
     /**
