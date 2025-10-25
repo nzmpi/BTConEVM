@@ -7,7 +7,7 @@ There are 2 main contracts: `Wallet` to sign and send transactions, and `Node` t
 The `Wallet` contract is a "wallet" for signing and sending transactions. It supports P2PKH, P2SH, P2WPKH and P2WSH scripts.
 It can also be used as a multisig wallet. 
 
-To send a transaction, you need to provide `InputArgs` and `OutputArgs`. `InputArgs` contains input types, indeces of the signing private keys, `txId`s and `vout`s for UTXOs to spend. `OutputArgs` contains output types, amounts, addresses and redeem/witness scripts.
+To send a transaction, you need to provide `InputArgs` and `OutputArgs`. `InputArgs` contains input types, indices of the signing private keys, `txIds` and `vouts` for UTXOs to spend. `OutputArgs` contains output types, amounts, addresses and redeem/witness scripts.
 
 For all transactions the wallet uses `version = 1`, `sequence = 0xffffffff`, `locktime = 0` and signs with `SIGHASH_ALL`. 
 
